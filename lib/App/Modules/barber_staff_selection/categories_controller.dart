@@ -7,6 +7,8 @@ import 'package:babershop_project/App/provider/api_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../provider/sharedprefference.dart';
+
 // Customer Model - UPDATED with totalPoints
 class Customer {
   final int id;
@@ -732,13 +734,24 @@ class CartController extends GetxController {
         paymentMethod = 'qr';
       }
 
-      // Get branch_id from selected barber
-      final int branchId = selectedBarber.value?.branch?.id ?? 1;
+      final int? branchId = SharedPrefService.instance.getBranchId();
+
+      if (branchId == null) {
+        Get.back(); // Close loading dialog
+        Get.snackbar(
+          'Error',
+          'Branch ID not found. Please login again.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+        return;
+      }
 
       print('💰 ===== PAYMENT DETAILS =====');
       print('🔧 Barber ID: ${selectedBarber.value?.id}');
       print('👤 Barber Name: ${selectedBarber.value?.fullName}');
-      print('🏢 Branch ID: $branchId');
+      print('🏢 Branch ID (from session): $branchId'); // ✅ From SharedPreferences
       print('👥 Customer ID: ${selectedCustomer.value?.id}');
       print('📱 Customer: ${selectedCustomer.value?.name}');
       print('💵 Subtotal: RM ${subtotal.toStringAsFixed(2)}');
@@ -749,11 +762,11 @@ class CartController extends GetxController {
       print('🛒 Items: $apiItems');
       print('============================');
 
-      // ✅ Call API without split payments
+      // ✅ Call API with branch_id from session
       final response = await ApiProvider.instance.createSale(
         customerId: selectedCustomer.value!.id,
         barberId: selectedBarber.value!.id!,
-        branchId: branchId,
+        branchId: branchId, // ✅ Use stored branch_id
         items: apiItems,
         subtotal: subtotal,
         discountAmount: discountAmount,
@@ -762,8 +775,9 @@ class CartController extends GetxController {
         totalAmount: totalAmount,
         paymentMethod: paymentMethod,
         paidAmount: paidAmount,
-        splitPayments: null, // ✅ No split payments
+        splitPayments: null,
       );
+
 
       // Close loading dialog
       Get.back();
