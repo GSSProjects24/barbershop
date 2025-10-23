@@ -20,20 +20,24 @@ class LoginScreen extends GetView<LoginController> {
               key: controller.formKey,
               child: Column(
                 children: [
-                  SizedBox(height: screenHeight * 0.04, width: screenWidth * 0.04),
+                  SizedBox(
+                    height: screenHeight * 0.04,
+                    width: screenWidth * 0.04,
+                  ),
 
                   // Top image with curved container
                   Container(
                     height: screenHeight * 0.30,
                     width: double.infinity,
                     decoration: const BoxDecoration(
-                      color: Color(0xFFFFA726),
+                      color: Color(0xFFFFA726), // orange background
                       borderRadius: BorderRadius.all(
                         Radius.circular(24),
                       ),
                     ),
                     child: Stack(
                       children: [
+                        // Pattern background (optional)
                         Positioned.fill(
                           child: Opacity(
                             opacity: 0.9,
@@ -46,6 +50,7 @@ class LoginScreen extends GetView<LoginController> {
                             ),
                           ),
                         ),
+                        // Main image
                         Center(
                           child: Image.asset(
                             'images/login1.png',
@@ -88,6 +93,7 @@ class LoginScreen extends GetView<LoginController> {
 
                   const SizedBox(height: 32),
 
+                  // Login label
                   const Text(
                     'Login to Your Account',
                     style: TextStyle(
@@ -99,14 +105,14 @@ class LoginScreen extends GetView<LoginController> {
 
                   const SizedBox(height: 24),
 
-                  // ✅ UPDATED: Username Field (instead of Email)
+                  // ✅ UPDATED: Username/Email Field
                   TextFormField(
-                    controller: controller.usernameController, // Changed from emailController
+                    controller: controller.usernameController,
                     keyboardType: TextInputType.text,
                     decoration: InputDecoration(
-                      hintText: 'Branch Username', // Changed
+                      hintText: 'Username or Email',
                       prefixIcon: const Icon(
-                        Icons.person_outline, // Changed icon
+                        Icons.person_outline,
                         color: Color(0xFFFFA726),
                       ),
                       border: OutlineInputBorder(
@@ -135,10 +141,11 @@ class LoginScreen extends GetView<LoginController> {
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter your username'; // Changed
+                        return 'Please enter your username or email';
                       }
+                      // ✅ Accept both username and email
                       if (value.length < 3) {
-                        return 'Username must be at least 3 characters'; // Changed
+                        return 'Username must be at least 3 characters';
                       }
                       return null;
                     },
@@ -146,7 +153,7 @@ class LoginScreen extends GetView<LoginController> {
 
                   const SizedBox(height: 16),
 
-                  // Password Field (unchanged)
+                  // Password Field
                   Obx(() => TextFormField(
                     controller: controller.passwordController,
                     obscureText: controller.obscurePassword.value,
@@ -202,7 +209,7 @@ class LoginScreen extends GetView<LoginController> {
 
                   const SizedBox(height: 12),
 
-                  // Remember Me
+                  // Remember Me & Forgot Password
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [

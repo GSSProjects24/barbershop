@@ -1,8 +1,10 @@
 import 'package:babershop_project/App/provider/api_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginController extends GetxController {
+  // ✅ Changed from emailController to usernameController
   final usernameController = TextEditingController();
   final passwordController = TextEditingController();
 
@@ -17,45 +19,47 @@ class LoginController extends GetxController {
     isLoading.value = true;
 
     try {
-      // ✅ API Provider already handles saving all data via SharedPrefService
+      // ✅ Using username field (can be either username or email)
       final response = await ApiProvider.instance.login(
         usernameController.text.trim(),
         passwordController.text.trim(),
       );
 
       if (response['success'] == true) {
-        // ✅ No need to save data here - ApiProvider already did it!
-
+        // Login successful - data already saved in ApiProvider
         Get.snackbar(
           'Success',
           'Login successful!',
           backgroundColor: Colors.green,
           colorText: Colors.white,
-          snackPosition: SnackPosition.BOTTOM,
+          icon: const Icon(Icons.check_circle, color: Colors.white),
+          snackPosition: SnackPosition.TOP,
+          duration: const Duration(seconds: 2),
         );
 
-        // ✅ Navigate to barber selection
+        // Navigate to barber selection
         Get.offAllNamed('/barberSelection');
       } else {
-        // ✅ Show error message
         Get.snackbar(
-          'Login Failed',
+          'Failed',
           response['message'] ?? 'Invalid credentials',
           backgroundColor: Colors.red,
           colorText: Colors.white,
+          icon: const Icon(Icons.error, color: Colors.white),
           snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 3),
         );
       }
     } catch (e) {
-      // ✅ Handle unexpected errors
       Get.snackbar(
         'Error',
-        'An unexpected error occurred',
+        'Failed to login: $e',
         backgroundColor: Colors.red,
         colorText: Colors.white,
+        icon: const Icon(Icons.error_outline, color: Colors.white),
         snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 3),
       );
-      print('❌ Login error: $e');
     } finally {
       isLoading.value = false;
     }
