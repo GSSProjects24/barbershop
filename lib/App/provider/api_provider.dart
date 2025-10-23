@@ -42,48 +42,66 @@ class ApiProvider {
 
   // ✅ LOGIN API
   // ✅ LOGIN API - UPDATED
+// ✅ LOGIN API - FIXED
   Future<Map<String, dynamic>> login(String username, String password) async {
     try {
       final response = await _dio.post(
-        '/login',
+        '/branch/login',
         data: {
-          'username': username,
-          'password': password,
+          'branch_username': username,
+          'branch_password': password,
         },
       );
+
+      print('📥 Login Response Status: ${response.statusCode}');
+      print('📥 Login Response Data: ${response.data}');
 
       if (response.statusCode == 200 && response.data != null) {
         final data = response.data as Map<String, dynamic>;
 
-        // ✅ If login successful, save token and user data
-        if (data['success'] == true && data['data'] != null) {
-          final loginData = data['data'];
-          final user = loginData['user'];
+        // ✅ Check if login was successful
+        if (data['success'] == true) {
+          // ✅ Extract data directly from response (not nested under 'data')
+          final token = data['token'] as String?;
+          final branch = data['branch'] as Map<String, dynamic>?;
 
-          // ✅ Extract branch information
-          final branch = user['branch'];
-          final branchName = branch != null ? branch['name'] : null;
-          final branchId = branch != null ? branch['id'] : null;
+          if (token != null && branch != null) {
+            // ✅ Extract branch information
+            final branchId = branch['id'] as int?;
+            final branchName = branch['name'] as String?;
 
-          // Save to SharedPreferences
-          await SharedPrefService.instance.saveLoginData(
-            token: loginData['token'],
-            userId: user['id'],
-            username: user['username'],
-            fullName: user['full_name'],
-            email: user['email'],
-            isSuperAdmin: user['is_super_admin'],
-            branchName: branchName, // ✅ NEW
-            branchId: branchId, // ✅ NEW
-          );
+            // Extract organization info if available
+            final organization = branch['organization'] as Map<String, dynamic>?;
+            final orgName = organization?['name'] as String?;
 
-          print('✅ Branch saved: $branchName (ID: $branchId)');
+            // ✅ Save to SharedPreferences
+            await SharedPrefService.instance.saveLoginData(
+              token: token,
+              userId: branchId ?? 0, // Using branch ID as user ID for now
+              username: username,
+              fullName: branchName ?? 'Unknown Branch',
+              email: branch['email'] as String?,
+              isSuperAdmin: false, // Branch users are not super admins
+              branchName: branchName,
+              branchId: branchId,
+            );
+
+            print('✅ Login data saved successfully');
+            print('✅ Token: ${token.substring(0, 20)}...');
+            print('✅ Branch: $branchName (ID: $branchId)');
+
+            // Verify storage
+            final storedData = SharedPrefService.instance.getAllStoredData();
+            print('✅ Stored Data: $storedData');
+          } else {
+            print('❌ Token or branch data is missing');
+          }
+
+          return data;
+        } else {
+          print('❌ Login failed: ${data['message']}');
+          return data;
         }
-
-        final storedData = SharedPrefService.instance.getAllStoredData();
-        print('Stored Data Map: $storedData');
-
-        return data;
       } else if (response.data != null && response.data is Map<String, dynamic>) {
         return response.data as Map<String, dynamic>;
       } else {
@@ -93,11 +111,14 @@ class ApiProvider {
         };
       }
     } on DioException catch (e) {
+      print('❌ DioException: ${e.message}');
+      print('❌ Response: ${e.response?.data}');
       return {
         'success': false,
         'message': 'Network error: ${e.message}',
       };
     } catch (e) {
+      print('❌ Unexpected error: $e');
       return {
         'success': false,
         'message': 'Unexpected error: $e',

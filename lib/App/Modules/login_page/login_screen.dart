@@ -2,13 +2,6 @@ import 'package:babershop_project/App/Controller/Login_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-// ============================================
-// LOGIN CONTROLLER (GetX)
-// ============================================
-
-// ============================================
-// LOGIN SCREEN VIEW
-// ============================================
 class LoginScreen extends GetView<LoginController> {
   const LoginScreen({super.key});
 
@@ -27,27 +20,25 @@ class LoginScreen extends GetView<LoginController> {
               key: controller.formKey,
               child: Column(
                 children: [
-                  SizedBox(height: screenHeight * 0.04,width: screenWidth * 0.04,),
-
+                  SizedBox(height: screenHeight * 0.04, width: screenWidth * 0.04),
 
                   // Top image with curved container
                   Container(
                     height: screenHeight * 0.30,
                     width: double.infinity,
                     decoration: const BoxDecoration(
-                      color: Color(0xFFFFA726), // orange background
+                      color: Color(0xFFFFA726),
                       borderRadius: BorderRadius.all(
                         Radius.circular(24),
                       ),
                     ),
                     child: Stack(
                       children: [
-                        // Pattern background (optional)
                         Positioned.fill(
                           child: Opacity(
                             opacity: 0.9,
                             child: Image.asset(
-                              'images/seticon.png', // barber tools pattern
+                              'images/seticon.png',
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 return const SizedBox();
@@ -55,10 +46,9 @@ class LoginScreen extends GetView<LoginController> {
                             ),
                           ),
                         ),
-                        // Main image
                         Center(
                           child: Image.asset(
-                            'images/login1.png', // barber with scissors
+                            'images/login1.png',
                             height: screenHeight * 0.56,
                             width: screenHeight * 0.56,
                             errorBuilder: (context, error, stackTrace) {
@@ -98,7 +88,6 @@ class LoginScreen extends GetView<LoginController> {
 
                   const SizedBox(height: 32),
 
-                  // Login label
                   const Text(
                     'Login to Your Account',
                     style: TextStyle(
@@ -110,14 +99,14 @@ class LoginScreen extends GetView<LoginController> {
 
                   const SizedBox(height: 24),
 
-                  // Email Field
+                  // ✅ UPDATED: Username Field (instead of Email)
                   TextFormField(
-                    controller: controller.emailController,
-                    keyboardType: TextInputType.emailAddress,
+                    controller: controller.usernameController, // Changed from emailController
+                    keyboardType: TextInputType.text,
                     decoration: InputDecoration(
-                      hintText: 'Email Address',
+                      hintText: 'Branch Username', // Changed
                       prefixIcon: const Icon(
-                        Icons.email_outlined,
+                        Icons.person_outline, // Changed icon
                         color: Color(0xFFFFA726),
                       ),
                       border: OutlineInputBorder(
@@ -146,10 +135,10 @@ class LoginScreen extends GetView<LoginController> {
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter your email';
+                        return 'Please enter your username'; // Changed
                       }
-                      if (!GetUtils.isEmail(value)) {
-                        return 'Please enter a valid email';
+                      if (value.length < 3) {
+                        return 'Username must be at least 3 characters'; // Changed
                       }
                       return null;
                     },
@@ -157,7 +146,7 @@ class LoginScreen extends GetView<LoginController> {
 
                   const SizedBox(height: 16),
 
-                  // Password Field
+                  // Password Field (unchanged)
                   Obx(() => TextFormField(
                     controller: controller.passwordController,
                     obscureText: controller.obscurePassword.value,
@@ -213,7 +202,7 @@ class LoginScreen extends GetView<LoginController> {
 
                   const SizedBox(height: 12),
 
-                  // Remember Me & Forgot Password
+                  // Remember Me
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -233,7 +222,6 @@ class LoginScreen extends GetView<LoginController> {
                           ),
                         ],
                       ),
-
                     ],
                   ),
 
@@ -276,7 +264,6 @@ class LoginScreen extends GetView<LoginController> {
                     ),
                   )),
 
-
                   const SizedBox(height: 24),
                 ],
               ),
@@ -288,26 +275,9 @@ class LoginScreen extends GetView<LoginController> {
   }
 }
 
-// ============================================
-// LOGIN BINDING (GetX Dependency Injection)
-// ============================================
 class LoginBinding extends Bindings {
   @override
   void dependencies() {
     Get.lazyPut<LoginController>(() => LoginController());
   }
 }
-
-// ============================================
-// USAGE IN ROUTES
-// ============================================
-/*
-In your app_pages.dart:
-
-GetPage(
-  name: Routes.LOGIN,
-  page: () => const LoginScreen(),
-  binding: LoginBinding(),
-  transition: Transition.fadeIn,
-),
-*/

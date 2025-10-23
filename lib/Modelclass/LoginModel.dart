@@ -11,259 +11,107 @@ String loginModelToJson(LoginModel data) => json.encode(data.toJson());
 class LoginModel {
   bool? success;
   String? message;
-  Data? data;
+  String? token;
+  Branch? branch;
 
   LoginModel({
     this.success,
     this.message,
-    this.data,
+    this.token,
+    this.branch,
   });
 
   factory LoginModel.fromJson(Map<String, dynamic> json) => LoginModel(
     success: json["success"],
     message: json["message"],
-    data: json["data"] == null ? null : Data.fromJson(json["data"]),
+    token: json["token"],
+    branch: json["branch"] == null ? null : Branch.fromJson(json["branch"]),
   );
 
   Map<String, dynamic> toJson() => {
     "success": success,
     "message": message,
-    "data": data?.toJson(),
-  };
-}
-
-class Data {
-  String? token;
-  String? tokenType;
-  User? user;
-
-  Data({
-    this.token,
-    this.tokenType,
-    this.user,
-  });
-
-  factory Data.fromJson(Map<String, dynamic> json) => Data(
-    token: json["token"],
-    tokenType: json["token_type"],
-    user: json["user"] == null ? null : User.fromJson(json["user"]),
-  );
-
-  Map<String, dynamic> toJson() => {
     "token": token,
-    "token_type": tokenType,
-    "user": user?.toJson(),
-  };
-}
-
-class User {
-  int? id;
-  String? username;
-  String? fullName;
-  String? email;
-  String? phone;
-  dynamic avatar;
-  bool? isSuperAdmin;
-  bool? canAccessAllBranches;
-  bool? status;
-  DateTime? lastLoginAt;
-  Role? role;
-  dynamic employee;
-  Branch? branch;
-  Organization? organization;
-  List<dynamic>? permissions;
-  DateTime? createdAt;
-  DateTime? updatedAt;
-
-  User({
-    this.id,
-    this.username,
-    this.fullName,
-    this.email,
-    this.phone,
-    this.avatar,
-    this.isSuperAdmin,
-    this.canAccessAllBranches,
-    this.status,
-    this.lastLoginAt,
-    this.role,
-    this.employee,
-    this.branch,
-    this.organization,
-    this.permissions,
-    this.createdAt,
-    this.updatedAt,
-  });
-
-  factory User.fromJson(Map<String, dynamic> json) => User(
-    id: json["id"],
-    username: json["username"],
-    fullName: json["full_name"],
-    email: json["email"],
-    phone: json["phone"],
-    avatar: json["avatar"],
-    isSuperAdmin: json["is_super_admin"],
-    canAccessAllBranches: json["can_access_all_branches"],
-    status: json["status"],
-    lastLoginAt: json["last_login_at"] == null ? null : DateTime.parse(json["last_login_at"]),
-    role: json["role"] == null ? null : Role.fromJson(json["role"]),
-    employee: json["employee"],
-    branch: json["branch"] == null ? null : Branch.fromJson(json["branch"]),
-    organization: json["organization"] == null ? null : Organization.fromJson(json["organization"]),
-    permissions: json["permissions"] == null ? [] : List<dynamic>.from(json["permissions"]!.map((x) => x)),
-    createdAt: json["created_at"] == null ? null : DateTime.parse(json["created_at"]),
-    updatedAt: json["updated_at"] == null ? null : DateTime.parse(json["updated_at"]),
-  );
-
-  Map<String, dynamic> toJson() => {
-    "id": id,
-    "username": username,
-    "full_name": fullName,
-    "email": email,
-    "phone": phone,
-    "avatar": avatar,
-    "is_super_admin": isSuperAdmin,
-    "can_access_all_branches": canAccessAllBranches,
-    "status": status,
-    "last_login_at": lastLoginAt?.toIso8601String(),
-    "role": role?.toJson(),
-    "employee": employee,
     "branch": branch?.toJson(),
-    "organization": organization?.toJson(),
-    "permissions": permissions == null ? [] : List<dynamic>.from(permissions!.map((x) => x)),
-    "created_at": createdAt?.toIso8601String(),
-    "updated_at": updatedAt?.toIso8601String(),
   };
 }
 
 class Branch {
   int? id;
-  String? name;
   String? branchCode;
+  String? name;
   String? type;
-  String? address;
-  String? city;
-  String? state;
+  Organization? organization;
+  String? contactPerson;
   String? phone;
   String? email;
-  bool? isPointsEnabled;
-  bool? isInventoryEnabled;
-  bool? status;
+  String? address;
+  String? openingTime;
+  String? closingTime;
+  List<String>? workingDays;
 
   Branch({
     this.id,
-    this.name,
     this.branchCode,
+    this.name,
     this.type,
-    this.address,
-    this.city,
-    this.state,
+    this.organization,
+    this.contactPerson,
     this.phone,
     this.email,
-    this.isPointsEnabled,
-    this.isInventoryEnabled,
-    this.status,
+    this.address,
+    this.openingTime,
+    this.closingTime,
+    this.workingDays,
   });
 
   factory Branch.fromJson(Map<String, dynamic> json) => Branch(
     id: json["id"],
-    name: json["name"],
     branchCode: json["branch_code"],
+    name: json["name"],
     type: json["type"],
-    address: json["address"],
-    city: json["city"],
-    state: json["state"],
+    organization: json["organization"] == null ? null : Organization.fromJson(json["organization"]),
+    contactPerson: json["contact_person"],
     phone: json["phone"],
     email: json["email"],
-    isPointsEnabled: json["is_points_enabled"],
-    isInventoryEnabled: json["is_inventory_enabled"],
-    status: json["status"],
+    address: json["address"],
+    openingTime: json["opening_time"],
+    closingTime: json["closing_time"],
+    workingDays: json["working_days"] == null ? [] : List<String>.from(json["working_days"]!.map((x) => x)),
   );
 
   Map<String, dynamic> toJson() => {
     "id": id,
-    "name": name,
     "branch_code": branchCode,
+    "name": name,
     "type": type,
-    "address": address,
-    "city": city,
-    "state": state,
+    "organization": organization?.toJson(),
+    "contact_person": contactPerson,
     "phone": phone,
     "email": email,
-    "is_points_enabled": isPointsEnabled,
-    "is_inventory_enabled": isInventoryEnabled,
-    "status": status,
+    "address": address,
+    "opening_time": openingTime,
+    "closing_time": closingTime,
+    "working_days": workingDays == null ? [] : List<dynamic>.from(workingDays!.map((x) => x)),
   };
 }
 
 class Organization {
   int? id;
   String? name;
-  String? code;
-  String? type;
-  dynamic logo;
-  String? email;
-  String? phone;
 
   Organization({
     this.id,
     this.name,
-    this.code,
-    this.type,
-    this.logo,
-    this.email,
-    this.phone,
   });
 
   factory Organization.fromJson(Map<String, dynamic> json) => Organization(
     id: json["id"],
     name: json["name"],
-    code: json["code"],
-    type: json["type"],
-    logo: json["logo"],
-    email: json["email"],
-    phone: json["phone"],
   );
 
   Map<String, dynamic> toJson() => {
     "id": id,
     "name": name,
-    "code": code,
-    "type": type,
-    "logo": logo,
-    "email": email,
-    "phone": phone,
-  };
-}
-
-class Role {
-  int? id;
-  String? name;
-  String? slug;
-  String? description;
-  int? level;
-
-  Role({
-    this.id,
-    this.name,
-    this.slug,
-    this.description,
-    this.level,
-  });
-
-  factory Role.fromJson(Map<String, dynamic> json) => Role(
-    id: json["id"],
-    name: json["name"],
-    slug: json["slug"],
-    description: json["description"],
-    level: json["level"],
-  );
-
-  Map<String, dynamic> toJson() => {
-    "id": id,
-    "name": name,
-    "slug": slug,
-    "description": description,
-    "level": level,
   };
 }
