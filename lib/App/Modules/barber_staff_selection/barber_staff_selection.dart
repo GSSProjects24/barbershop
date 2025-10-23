@@ -1645,9 +1645,24 @@ class BarberSelectionPage extends StatelessWidget {
             spacing: 6,
             runSpacing: 6,
             children: [
-              _paymentChip('Cash', Icons.money, controller.isCash),
-              _paymentChip('Online', Icons.credit_card, controller.isOnline),
-             // _paymentChip('Qr', Icons.receipt_long, controller.isQr),
+              _paymentChip(
+                'Cash',
+                Icons.money,
+                controller.isCash,
+                    () => controller.selectPaymentMethod('cash'), // ✅ Add callback
+              ),
+              _paymentChip(
+                'Online',
+                Icons.credit_card,
+                controller.isOnline,
+                    () => controller.selectPaymentMethod('online'), // ✅ Add callback
+              ),
+              // _paymentChip(
+              //   'QR',
+              //   Icons.qr_code,
+              //   controller.isQr,
+              //       () => controller.selectPaymentMethod('qr'), // ✅ Add callback
+              // ),
             ],
           ),
           const SizedBox(height: 12),
@@ -1689,12 +1704,16 @@ class BarberSelectionPage extends StatelessWidget {
   }
 
 
-  Widget _paymentChip(String label, IconData icon, RxBool value) {
+  Widget _paymentChip(String label, IconData icon, RxBool value, VoidCallback onTap) {
     return Obx(() => FilterChip(
       label: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: value.value ?  AppColors.success : Colors.white70),
+          Icon(
+              icon,
+              size: 14,
+              color: value.value ? AppColors.success : Colors.white70
+          ),
           const SizedBox(width: 4),
           Text(
             label,
@@ -1707,12 +1726,20 @@ class BarberSelectionPage extends StatelessWidget {
         ],
       ),
       selected: value.value,
-      onSelected: (val) => value.value = val,
+      onSelected: (val) {
+        if (val) {
+          onTap(); // ✅ Call the toggle method
+        } else {
+          value.value = false; // ✅ Allow deselection
+        }
+      },
       selectedColor: AppColors.success.withOpacity(0.25),
-      backgroundColor:  AppColors.success.withOpacity(0.1),
-      checkmarkColor:  AppColors.success,
+      backgroundColor: AppColors.success.withOpacity(0.1),
+      checkmarkColor: AppColors.success,
       side: BorderSide(
-        color: value.value ?  AppColors.success.withOpacity(0.5) :  AppColors.success.withOpacity(0.2),
+        color: value.value
+            ? AppColors.success.withOpacity(0.5)
+            : AppColors.success.withOpacity(0.2),
         width: 1.5,
       ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

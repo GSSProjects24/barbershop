@@ -103,7 +103,28 @@ class CartController extends GetxController {
       }
     });
   }
+// ✅ Add this to your CartController class
+  void selectPaymentMethod(String method) {
+    switch (method) {
+      case 'cash':
+        isCash.value = true;
+        isOnline.value = false;
+        isQr.value = false;
+        break;
+      case 'online':
+        isCash.value = false;
+        isOnline.value = true;
+        isQr.value = false;
+        break;
+      case 'qr':
+        isCash.value = false;
+        isOnline.value = false;
+        isQr.value = true;
+        break;
+    }
 
+    print('💳 Payment method selected: $method');
+  }
   // ✅ Calculate available points for redemption
   int get availablePoints {
     return selectedCustomer.value?.totalPoints ?? 0;
@@ -599,8 +620,7 @@ class CartController extends GetxController {
       duration: const Duration(seconds: 1),
     );
   }
-
-  // ✅ UPDATED: Make Payment with Points Redemption
+// ✅ UPDATED: Make Payment - Single Payment Method Only
   Future<void> makePayment() async {
     // Validation checks
     if (cartItems.isEmpty) {
@@ -639,7 +659,13 @@ class CartController extends GetxController {
       return;
     }
 
-    if (!isCash.value && !isOnline.value && !isQr.value) {
+    // ✅ NEW: Ensure only ONE payment method is selected
+    int selectedPaymentMethods = 0;
+    if (isCash.value) selectedPaymentMethods++;
+    if (isOnline.value) selectedPaymentMethods++;
+    if (isQr.value) selectedPaymentMethods++;
+
+    if (selectedPaymentMethods == 0) {
       Get.snackbar(
         'Payment Method Required',
         'Please select a payment method',
@@ -647,6 +673,18 @@ class CartController extends GetxController {
         backgroundColor: Colors.red,
         colorText: Colors.white,
         icon: const Icon(Icons.payment, color: Colors.white),
+      );
+      return;
+    }
+
+    if (selectedPaymentMethods > 1) {
+      Get.snackbar(
+        'Multiple Payment Methods',
+        'Please select only ONE payment method',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+        icon: const Icon(Icons.warning, color: Colors.white),
       );
       return;
     }
@@ -684,51 +722,14 @@ class CartController extends GetxController {
       // Paid amount equals total amount
       final double paidAmount = totalAmount;
 
-      // Determine payment method(s)
-      String primaryPaymentMethod = '';
-      List<Map<String, dynamic>>? splitPayments;
-
-      // Count selected payment methods
-      int paymentMethodCount = 0;
-      if (isCash.value) paymentMethodCount++;
-      if (isOnline.value) paymentMethodCount++;
-      if (isQr.value) paymentMethodCount++;
-
-      if (paymentMethodCount == 1) {
-        // Single payment method
-        if (isCash.value) {
-          primaryPaymentMethod = 'cash';
-        } else if (isOnline.value) {
-          primaryPaymentMethod = 'online';
-        } else if (isQr.value) {
-          primaryPaymentMethod = 'qr';
-        }
-      } else if (paymentMethodCount > 1) {
-        // Split payment
-        primaryPaymentMethod = 'split';
-        splitPayments = [];
-
-        // Divide amount equally among selected methods
-        final double amountPerMethod = totalAmount / paymentMethodCount;
-
-        if (isCash.value) {
-          splitPayments.add({
-            'payment_method': 'cash',
-            'amount': amountPerMethod,
-          });
-        }
-        if (isOnline.value) {
-          splitPayments.add({
-            'payment_method': 'online',
-            'amount': amountPerMethod,
-          });
-        }
-        if (isQr.value) {
-          splitPayments.add({
-            'payment_method': 'qr',
-            'amount': amountPerMethod,
-          });
-        }
+      // ✅ Determine single payment method
+      String paymentMethod = '';
+      if (isCash.value) {
+        paymentMethod = 'cash';
+      } else if (isOnline.value) {
+        paymentMethod = 'online';
+      } else if (isQr.value) {
+        paymentMethod = 'qr';
       }
 
       // Get branch_id from selected barber
@@ -744,14 +745,11 @@ class CartController extends GetxController {
       print('🎁 Points Redeemed: $pointsRedeemed points');
       print('💰 Points Value: RM ${pointsValue.toStringAsFixed(2)}');
       print('💵 Total Amount: RM ${totalAmount.toStringAsFixed(2)}');
-      print('💳 Payment Method: $primaryPaymentMethod');
-      if (splitPayments != null) {
-        print('💳 Split Payments: $splitPayments');
-      }
+      print('💳 Payment Method: $paymentMethod');
       print('🛒 Items: $apiItems');
       print('============================');
 
-      // ✅ Call API with points redemption
+      // ✅ Call API without split payments
       final response = await ApiProvider.instance.createSale(
         customerId: selectedCustomer.value!.id,
         barberId: selectedBarber.value!.id!,
@@ -762,117 +760,26 @@ class CartController extends GetxController {
         pointsRedeemed: pointsRedeemed,
         pointsRedeemedValue: pointsValue,
         totalAmount: totalAmount,
-        paymentMethod: primaryPaymentMethod,
+        paymentMethod: paymentMethod,
         paidAmount: paidAmount,
-        splitPayments: splitPayments,
+        splitPayments: null, // ✅ No split payments
       );
 
       // Close loading dialog
       Get.back();
 
       if (response['success'] == true) {
-        final saleData = response['data'];
-        final sale = saleData['sale'];
-        final customer = saleData['customer'];
         Get.snackbar(
           'Payment Success',
-          response['message'] ?? 'Succes to process payment',
+          response['message'] ?? 'Success to process payment',
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: Colors.green,
           colorText: Colors.white,
-          icon: const Icon(Icons.error_outline, color: Colors.white),
+          icon: const Icon(Icons.check_circle, color: Colors.white),
           duration: const Duration(seconds: 3),
         );
+
         _clearAfterPayment();
-        // Show success dialog with sale details
-        // Get.dialog(
-        //   AlertDialog(
-        //     shape: RoundedRectangleBorder(
-        //       borderRadius: BorderRadius.circular(16),
-        //     ),
-        //     title: Row(
-        //       children: [
-        //         Container(
-        //           padding: const EdgeInsets.all(8),
-        //           decoration: BoxDecoration(
-        //             color: Colors.green.withOpacity(0.2),
-        //             borderRadius: BorderRadius.circular(8),
-        //           ),
-        //           child: const Icon(Icons.check_circle, color: Colors.green, size: 32),
-        //         ),
-        //         const SizedBox(width: 12),
-        //         const Text(
-        //           'Payment Successful!',
-        //           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-        //         ),
-        //       ],
-        //     ),
-        //     content: Column(
-        //       mainAxisSize: MainAxisSize.min,
-        //       crossAxisAlignment: CrossAxisAlignment.start,
-        //       children: [
-        //         _buildDetailRow('Invoice', sale['invoice_number'] ?? '-'),
-        //         _buildDetailRow('Subtotal', 'RM ${subtotal.toStringAsFixed(2)}'),
-        //         if (pointsRedeemed > 0) ...[
-        //           _buildDetailRow(
-        //             'Points Redeemed',
-        //             '$pointsRedeemed pts (-RM ${pointsValue.toStringAsFixed(2)})',
-        //             valueColor: Colors.blue,
-        //           ),
-        //         ],
-        //         _buildDetailRow('Total', 'RM ${totalAmount.toStringAsFixed(2)}'),
-        //         _buildDetailRow('Paid', 'RM ${paidAmount.toStringAsFixed(2)}'),
-        //         if (sale['change_amount'] != null && sale['change_amount'] > 0)
-        //           _buildDetailRow(
-        //             'Change',
-        //             'RM ${sale['change_amount'].toStringAsFixed(2)}',
-        //             valueColor: Colors.orange,
-        //           ),
-        //         _buildDetailRow(
-        //           'Points Earned',
-        //           '${sale['points_earned']} pts',
-        //           valueColor: Colors.amber.shade700,
-        //         ),
-        //         const Divider(height: 24),
-        //         Text(
-        //           'Customer Points: ${customer['total_points']} pts',
-        //           style: TextStyle(
-        //             fontSize: 14,
-        //             color: Colors.grey.shade700,
-        //             fontWeight: FontWeight.w600,
-        //           ),
-        //         ),
-        //       ],
-        //     ),
-        //     actions: [
-        //       TextButton(
-        //         onPressed: () {
-        //           Get.back();
-        //           _clearAfterPayment();
-        //         },
-        //         child: const Text('Close'),
-        //       ),
-        //       // ElevatedButton(
-        //       //   onPressed: () {
-        //       //     Get.back();
-        //       //     _printReceipt(saleData);
-        //       //     _clearAfterPayment();
-        //       //   },
-        //       //   style: ElevatedButton.styleFrom(
-        //       //     backgroundColor: const Color(0xFF667EEA),
-        //       //     shape: RoundedRectangleBorder(
-        //       //       borderRadius: BorderRadius.circular(8),
-        //       //     ),
-        //       //   ),
-        //       //   child: const Text(
-        //       //     'Print Receipt',
-        //       //     style: TextStyle(color: Colors.white),
-        //       //   ),
-        //       // ),
-        //     ],
-        //   ),
-        //   barrierDismissible: false,
-        // );
 
         // Refresh customer data to update points
         await fetchCustomers();
@@ -904,6 +811,310 @@ class CartController extends GetxController {
       );
     }
   }
+  // ✅ UPDATED: Make Payment with Points Redemption
+  // Future<void> makePayment() async {
+  //   // Validation checks
+  //   if (cartItems.isEmpty) {
+  //     Get.snackbar(
+  //       'Cart Empty',
+  //       'Please add items to cart',
+  //       snackPosition: SnackPosition.BOTTOM,
+  //       backgroundColor: Colors.red,
+  //       colorText: Colors.white,
+  //       icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white),
+  //     );
+  //     return;
+  //   }
+  //
+  //   if (selectedBarber.value == null) {
+  //     Get.snackbar(
+  //       'Barber Required',
+  //       'Please select a barber',
+  //       snackPosition: SnackPosition.BOTTOM,
+  //       backgroundColor: Colors.red,
+  //       colorText: Colors.white,
+  //       icon: const Icon(Icons.person_outline, color: Colors.white),
+  //     );
+  //     return;
+  //   }
+  //
+  //   if (selectedCustomer.value == null) {
+  //     Get.snackbar(
+  //       'Customer Required',
+  //       'Please select a customer',
+  //       snackPosition: SnackPosition.BOTTOM,
+  //       backgroundColor: Colors.red,
+  //       colorText: Colors.white,
+  //       icon: const Icon(Icons.person_outline, color: Colors.white),
+  //     );
+  //     return;
+  //   }
+  //
+  //   if (!isCash.value && !isOnline.value && !isQr.value) {
+  //     Get.snackbar(
+  //       'Payment Method Required',
+  //       'Please select a payment method',
+  //       snackPosition: SnackPosition.BOTTOM,
+  //       backgroundColor: Colors.red,
+  //       colorText: Colors.white,
+  //       icon: const Icon(Icons.payment, color: Colors.white),
+  //     );
+  //     return;
+  //   }
+  //
+  //   try {
+  //     // Show loading dialog
+  //     Get.dialog(
+  //       const Center(child: CircularProgressIndicator()),
+  //       barrierDismissible: false,
+  //     );
+  //
+  //     // Prepare items for API
+  //     final List<Map<String, dynamic>> apiItems = cartItems.map((cartItem) {
+  //       return {
+  //         'item_type': cartItem.item.type, // 'service' or 'product'
+  //         'item_id': cartItem.item.id,
+  //         'quantity': cartItem.quantity,
+  //         'unit_price': cartItem.item.price,
+  //         'is_redeemed': false,
+  //         'points_used': 0,
+  //       };
+  //     }).toList();
+  //
+  //     // Calculate amounts
+  //     final double subtotal = double.parse(subtotalAmount);
+  //     final double discountAmount = 0;
+  //
+  //     // ✅ Calculate points redeemed value
+  //     final int pointsRedeemed = pointsToRedeem.value;
+  //     final double pointsValue = pointsRedeemedValue;
+  //
+  //     // ✅ Calculate total amount: subtotal - discount - points value
+  //     final double totalAmount = (subtotal - discountAmount - pointsValue).clamp(0.0, double.infinity);
+  //
+  //     // Paid amount equals total amount
+  //     final double paidAmount = totalAmount;
+  //
+  //     // Determine payment method(s)
+  //     String primaryPaymentMethod = '';
+  //     List<Map<String, dynamic>>? splitPayments;
+  //
+  //     // Count selected payment methods
+  //     int paymentMethodCount = 0;
+  //     if (isCash.value) paymentMethodCount++;
+  //     if (isOnline.value) paymentMethodCount++;
+  //     if (isQr.value) paymentMethodCount++;
+  //
+  //     if (paymentMethodCount == "") {
+  //       // Single payment method
+  //       if (isCash.value) {
+  //         primaryPaymentMethod = 'cash';
+  //       } else if (isOnline.value) {
+  //         primaryPaymentMethod = 'online';
+  //       } else if (isQr.value) {
+  //         primaryPaymentMethod = 'qr';
+  //       }
+  //     } else if (paymentMethodCount > 1) {
+  //       // Split payment
+  //       primaryPaymentMethod = 'split';
+  //       splitPayments = [];
+  //
+  //       // Divide amount equally among selected methods
+  //       final double amountPerMethod = totalAmount / paymentMethodCount;
+  //
+  //       if (isCash.value) {
+  //         splitPayments.add({
+  //           'payment_method': 'cash',
+  //           'amount': amountPerMethod,
+  //         });
+  //       }
+  //       if (isOnline.value) {
+  //         splitPayments.add({
+  //           'payment_method': 'online',
+  //           'amount': amountPerMethod,
+  //         });
+  //       }
+  //       if (isQr.value) {
+  //         splitPayments.add({
+  //           'payment_method': 'qr',
+  //           'amount': amountPerMethod,
+  //         });
+  //       }
+  //     }
+  //
+  //     // Get branch_id from selected barber
+  //     final int branchId = selectedBarber.value?.branch?.id ?? 1;
+  //
+  //     print('💰 ===== PAYMENT DETAILS =====');
+  //     print('🔧 Barber ID: ${selectedBarber.value?.id}');
+  //     print('👤 Barber Name: ${selectedBarber.value?.fullName}');
+  //     print('🏢 Branch ID: $branchId');
+  //     print('👥 Customer ID: ${selectedCustomer.value?.id}');
+  //     print('📱 Customer: ${selectedCustomer.value?.name}');
+  //     print('💵 Subtotal: RM ${subtotal.toStringAsFixed(2)}');
+  //     print('🎁 Points Redeemed: $pointsRedeemed points');
+  //     print('💰 Points Value: RM ${pointsValue.toStringAsFixed(2)}');
+  //     print('💵 Total Amount: RM ${totalAmount.toStringAsFixed(2)}');
+  //     print('💳 Payment Method: $primaryPaymentMethod');
+  //     if (splitPayments != null) {
+  //       print('💳 Split Payments: $splitPayments');
+  //     }
+  //     print('🛒 Items: $apiItems');
+  //     print('============================');
+  //
+  //     // ✅ Call API with points redemption
+  //     final response = await ApiProvider.instance.createSale(
+  //       customerId: selectedCustomer.value!.id,
+  //       barberId: selectedBarber.value!.id!,
+  //       branchId: branchId,
+  //       items: apiItems,
+  //       subtotal: subtotal,
+  //       discountAmount: discountAmount,
+  //       pointsRedeemed: pointsRedeemed,
+  //       pointsRedeemedValue: pointsValue,
+  //       totalAmount: totalAmount,
+  //       paymentMethod: primaryPaymentMethod,
+  //       paidAmount: paidAmount,
+  //       splitPayments: splitPayments,
+  //     );
+  //
+  //     // Close loading dialog
+  //     Get.back();
+  //
+  //     if (response['success'] == true) {
+  //       final saleData = response['data'];
+  //       final sale = saleData['sale'];
+  //       final customer = saleData['customer'];
+  //       Get.snackbar(
+  //         'Payment Success',
+  //         response['message'] ?? 'Succes to process payment',
+  //         snackPosition: SnackPosition.BOTTOM,
+  //         backgroundColor: Colors.green,
+  //         colorText: Colors.white,
+  //         icon: const Icon(Icons.error_outline, color: Colors.white),
+  //         duration: const Duration(seconds: 3),
+  //       );
+  //       _clearAfterPayment();
+  //       // Show success dialog with sale details
+  //       // Get.dialog(
+  //       //   AlertDialog(
+  //       //     shape: RoundedRectangleBorder(
+  //       //       borderRadius: BorderRadius.circular(16),
+  //       //     ),
+  //       //     title: Row(
+  //       //       children: [
+  //       //         Container(
+  //       //           padding: const EdgeInsets.all(8),
+  //       //           decoration: BoxDecoration(
+  //       //             color: Colors.green.withOpacity(0.2),
+  //       //             borderRadius: BorderRadius.circular(8),
+  //       //           ),
+  //       //           child: const Icon(Icons.check_circle, color: Colors.green, size: 32),
+  //       //         ),
+  //       //         const SizedBox(width: 12),
+  //       //         const Text(
+  //       //           'Payment Successful!',
+  //       //           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+  //       //         ),
+  //       //       ],
+  //       //     ),
+  //       //     content: Column(
+  //       //       mainAxisSize: MainAxisSize.min,
+  //       //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       //       children: [
+  //       //         _buildDetailRow('Invoice', sale['invoice_number'] ?? '-'),
+  //       //         _buildDetailRow('Subtotal', 'RM ${subtotal.toStringAsFixed(2)}'),
+  //       //         if (pointsRedeemed > 0) ...[
+  //       //           _buildDetailRow(
+  //       //             'Points Redeemed',
+  //       //             '$pointsRedeemed pts (-RM ${pointsValue.toStringAsFixed(2)})',
+  //       //             valueColor: Colors.blue,
+  //       //           ),
+  //       //         ],
+  //       //         _buildDetailRow('Total', 'RM ${totalAmount.toStringAsFixed(2)}'),
+  //       //         _buildDetailRow('Paid', 'RM ${paidAmount.toStringAsFixed(2)}'),
+  //       //         if (sale['change_amount'] != null && sale['change_amount'] > 0)
+  //       //           _buildDetailRow(
+  //       //             'Change',
+  //       //             'RM ${sale['change_amount'].toStringAsFixed(2)}',
+  //       //             valueColor: Colors.orange,
+  //       //           ),
+  //       //         _buildDetailRow(
+  //       //           'Points Earned',
+  //       //           '${sale['points_earned']} pts',
+  //       //           valueColor: Colors.amber.shade700,
+  //       //         ),
+  //       //         const Divider(height: 24),
+  //       //         Text(
+  //       //           'Customer Points: ${customer['total_points']} pts',
+  //       //           style: TextStyle(
+  //       //             fontSize: 14,
+  //       //             color: Colors.grey.shade700,
+  //       //             fontWeight: FontWeight.w600,
+  //       //           ),
+  //       //         ),
+  //       //       ],
+  //       //     ),
+  //       //     actions: [
+  //       //       TextButton(
+  //       //         onPressed: () {
+  //       //           Get.back();
+  //       //           _clearAfterPayment();
+  //       //         },
+  //       //         child: const Text('Close'),
+  //       //       ),
+  //       //       // ElevatedButton(
+  //       //       //   onPressed: () {
+  //       //       //     Get.back();
+  //       //       //     _printReceipt(saleData);
+  //       //       //     _clearAfterPayment();
+  //       //       //   },
+  //       //       //   style: ElevatedButton.styleFrom(
+  //       //       //     backgroundColor: const Color(0xFF667EEA),
+  //       //       //     shape: RoundedRectangleBorder(
+  //       //       //       borderRadius: BorderRadius.circular(8),
+  //       //       //     ),
+  //       //       //   ),
+  //       //       //   child: const Text(
+  //       //       //     'Print Receipt',
+  //       //       //     style: TextStyle(color: Colors.white),
+  //       //       //   ),
+  //       //       // ),
+  //       //     ],
+  //       //   ),
+  //       //   barrierDismissible: false,
+  //       // );
+  //
+  //       // Refresh customer data to update points
+  //       await fetchCustomers();
+  //     } else {
+  //       Get.snackbar(
+  //         'Payment Failed',
+  //         response['message'] ?? 'Failed to process payment',
+  //         snackPosition: SnackPosition.BOTTOM,
+  //         backgroundColor: Colors.red,
+  //         colorText: Colors.white,
+  //         icon: const Icon(Icons.error_outline, color: Colors.white),
+  //         duration: const Duration(seconds: 3),
+  //       );
+  //     }
+  //   } catch (e) {
+  //     // Close loading dialog if still open
+  //     if (Get.isDialogOpen ?? false) {
+  //       Get.back();
+  //     }
+  //
+  //     print('❌ Error processing payment: $e');
+  //     Get.snackbar(
+  //       'Error',
+  //       'Failed to process payment: $e',
+  //       snackPosition: SnackPosition.BOTTOM,
+  //       backgroundColor: Colors.red,
+  //       colorText: Colors.white,
+  //       duration: const Duration(seconds: 3),
+  //     );
+  //   }
+  // }
 
   // Helper method to build detail rows in success dialog
   Widget _buildDetailRow(String label, String value, {Color? valueColor}) {

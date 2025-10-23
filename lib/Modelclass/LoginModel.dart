@@ -44,7 +44,7 @@ class Branch {
   Organization? organization;
   String? contactPerson;
   String? phone;
-  String? email;
+  dynamic email;
   String? address;
   String? openingTime;
   String? closingTime;

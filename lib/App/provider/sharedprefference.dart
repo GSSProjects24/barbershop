@@ -25,6 +25,7 @@ class SharedPrefService {
   }
 
   // ✅ UPDATED: Save login data with branch info
+// ✅ UPDATED: Save login data with error logging
   Future<bool> saveLoginData({
     required String token,
     required int userId,
@@ -32,27 +33,54 @@ class SharedPrefService {
     String? fullName,
     String? email,
     bool? isSuperAdmin,
-    String? branchName, // ✅ NEW
-    int? branchId, // ✅ NEW
+    String? branchName,
+    int? branchId,
   }) async {
     try {
+      print('💾 Saving token: ${token.substring(0, 20)}...');
       await _prefs.setString(_tokenKey, token);
+
+      print('💾 Saving userId: $userId');
       await _prefs.setInt(_userIdKey, userId);
 
-      if (username != null) await _prefs.setString(_usernameKey, username);
-      if (fullName != null) await _prefs.setString(_fullNameKey, fullName);
-      if (email != null) await _prefs.setString(_emailKey, email);
-      if (isSuperAdmin != null) await _prefs.setBool(_isSuperAdminKey, isSuperAdmin);
+      if (username != null) {
+        print('💾 Saving username: $username');
+        await _prefs.setString(_usernameKey, username);
+      }
 
-      // ✅ NEW: Save branch data
-      if (branchName != null) await _prefs.setString(_branchNameKey, branchName);
-      if (branchId != null) await _prefs.setInt(_branchIdKey, branchId);
+      if (fullName != null) {
+        print('💾 Saving fullName: $fullName');
+        await _prefs.setString(_fullNameKey, fullName);
+      }
 
+      if (email != null) {
+        print('💾 Saving email: $email');
+        await _prefs.setString(_emailKey, email);
+      }
+
+      if (isSuperAdmin != null) {
+        print('💾 Saving isSuperAdmin: $isSuperAdmin');
+        await _prefs.setBool(_isSuperAdminKey, isSuperAdmin);
+      }
+
+      if (branchName != null) {
+        print('💾 Saving branchName: $branchName');
+        await _prefs.setString(_branchNameKey, branchName);
+      }
+
+      if (branchId != null) {
+        print('💾 Saving branchId: $branchId');
+        await _prefs.setInt(_branchIdKey, branchId);
+      }
+
+      print('✅ All data saved successfully');
       return true;
     } catch (e) {
+      print('❌ Error saving login data: $e');
       return false;
     }
   }
+
 
   // Get token
   String? getToken() {

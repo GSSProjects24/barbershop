@@ -42,48 +42,80 @@ class ApiProvider {
 
   // ✅ LOGIN API
   // ✅ LOGIN API - UPDATED
+  // ✅ LOGIN API - CORRECTED FOR ACTUAL RESPONSE STRUCTURE
   Future<Map<String, dynamic>> login(String username, String password) async {
     try {
       final response = await _dio.post(
-        '/login',
+        '/branch/login',
         data: {
-          'username': username,
-          'password': password,
+          'branch_username': username,
+          'branch_password': password,
         },
       );
+
+      print('📥 Login Response Status: ${response.statusCode}');
+      print('📥 Login Response Data: ${response.data}');
 
       if (response.statusCode == 200 && response.data != null) {
         final data = response.data as Map<String, dynamic>;
 
-        // ✅ If login successful, save token and user data
-        if (data['success'] == true && data['data'] != null) {
-          final loginData = data['data'];
-          final user = loginData['user'];
+        // ✅ Check if login was successful
+        if (data['success'] == true) {
+          // ✅ Extract data from FLAT response structure (not nested)
+          final token = data['token'] as String?;
+          final branchData = data['branch'] as Map<String, dynamic>?;
 
-          // ✅ Extract branch information
-          final branch = user['branch'];
-          final branchName = branch != null ? branch['name'] : null;
-          final branchId = branch != null ? branch['id'] : null;
+          if (token != null && branchData != null) {
+            // ✅ Extract branch information
+            final branchId = branchData['id'] as int?;
+            final branchName = branchData['name'] as String?;
+            final branchCode = branchData['branch_code'] as String?;
+            final contactPerson = branchData['contact_person'] as String?;
+            final phone = branchData['phone'] as String?;
+            final email = branchData['email'] as String?;
 
-          // Save to SharedPreferences
-          await SharedPrefService.instance.saveLoginData(
-            token: loginData['token'],
-            userId: user['id'],
-            username: user['username'],
-            fullName: user['full_name'],
-            email: user['email'],
-            isSuperAdmin: user['is_super_admin'],
-            branchName: branchName, // ✅ NEW
-            branchId: branchId, // ✅ NEW
-          );
+            // Extract organization info
+            final organization = branchData['organization'] as Map<String, dynamic>?;
+            final orgName = organization?['name'] as String?;
 
-          print('✅ Branch saved: $branchName (ID: $branchId)');
+            print('🔄 Attempting to save login data...');
+
+            // ✅ Save to SharedPreferences
+            final saveResult = await SharedPrefService.instance.saveLoginData(
+              token: token,
+              userId: branchId ?? 0,
+              username: username,
+              fullName: branchName ?? 'Unknown Branch',
+              email: email,
+              isSuperAdmin: false,
+              branchName: branchName,
+              branchId: branchId,
+            );
+
+            if (saveResult) {
+              print('✅ Login data saved successfully');
+            } else {
+              print('❌ Failed to save login data');
+            }
+
+            print('✅ Token: ${token.substring(0, 30)}...');
+            print('✅ Branch: $branchName (ID: $branchId)');
+            print('✅ Branch Code: $branchCode');
+            print('✅ Organization: $orgName');
+            print('✅ Contact: $contactPerson');
+
+            // Verify storage immediately after saving
+            final storedData = SharedPrefService.instance.getAllStoredData();
+            print('📋 Stored Data Map: $storedData');
+          } else {
+            print('❌ Token or branch data is missing from response');
+          }
+
+          return data;
+        } else {
+          print('❌ Login failed: ${data['message']}');
+          return data;
         }
-
-        final storedData = SharedPrefService.instance.getAllStoredData();
-        print('Stored Data Map: $storedData');
-
-        return data;
       } else if (response.data != null && response.data is Map<String, dynamic>) {
         return response.data as Map<String, dynamic>;
       } else {
@@ -93,11 +125,14 @@ class ApiProvider {
         };
       }
     } on DioException catch (e) {
+      print('❌ DioException: ${e.message}');
+      print('❌ Response: ${e.response?.data}');
       return {
         'success': false,
         'message': 'Network error: ${e.message}',
       };
     } catch (e) {
+      print('❌ Unexpected error: $e');
       return {
         'success': false,
         'message': 'Unexpected error: $e',
