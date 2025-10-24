@@ -1,10 +1,7 @@
-import 'package:babershop_project/App/Controller/splash/splash_controller.dart';
+import 'package:babershop_project/App/provider/sharedprefference.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:babershop_project/App/helper/route_hepler.dart';
-
-import 'package:shared_preferences/shared_preferences.dart';
-
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -17,8 +14,6 @@ class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
-
-  final AuthRepo authRepo = AuthRepo();
 
   @override
   void initState() {
@@ -35,21 +30,35 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward().then((_) async {
       await Future.delayed(const Duration(seconds: 2));
+      await _checkAuthStatus();
+    });
+  }
 
-      bool firstTime = await authRepo.isFirstTimeLaunch();
-      bool loggedIn = await authRepo.isLoggedIn();
+  // ✅ Check authentication status
+  Future<void> _checkAuthStatus() async {
+    try {
+      // ✅ Direct access since SharedPrefService is already initialized in main.dart
+      final token = SharedPrefService.instance.getToken();
+      final userId = SharedPrefService.instance.getUserId();
 
-      if (firstTime) {
-        await authRepo.saveIsFirstTimeLaunch();
-        RouteHelper.replace(name: RouteHelper.login);
-      } else if (loggedIn) {
-        // Already logged in → go to BarberSelection
+      print('🔍 Splash: Checking auth status...');
+      print('📱 Token exists: ${token != null && token.isNotEmpty}');
+      print('👤 User ID: $userId');
+
+      if (token != null && token.isNotEmpty && userId != null) {
+        // User is logged in
+        print('✅ User is logged in, navigating to BarberSelection');
         RouteHelper.replace(name: RouteHelper.barberSelection);
       } else {
+        // User is not logged in
+        print('❌ User not logged in, navigating to Login');
         RouteHelper.replace(name: RouteHelper.login);
       }
-    });
-
+    } catch (e) {
+      print('❌ Error checking auth status: $e');
+      // On error, go to login screen
+      RouteHelper.replace(name: RouteHelper.login);
+    }
   }
 
   @override

@@ -174,16 +174,37 @@ class ApiProvider {
   }
 
   // ✅ GET ALL ITEMS
+  // ✅ GET ALL ITEMS - UPDATED to pass branch_id
   Future<Map<String, dynamic>> getAllItems() async {
     try {
       print('📡 Fetching all items...');
 
-      final response = await _dio.get('/items/all');
+      // ✅ Get branch_id from SharedPreferences
+      final int? branchId = SharedPrefService.instance.getBranchId();
+
+      if (branchId == null) {
+        print('⚠️ Warning: Branch ID not found');
+        return {
+          'success': false,
+          'message': 'Branch ID not found. Please login again.',
+        };
+      }
+
+      print('🏢 Using Branch ID: $branchId');
+
+      // ✅ Pass branch_id as query parameter
+      final response = await _dio.get(
+        '/items/all',
+        queryParameters: {
+          'branch_id': branchId,
+        },
+      );
 
       print('📥 Items Response Status Code: ${response.statusCode}');
+      print('🔗 Request URL: ${response.requestOptions.uri}');
 
       if (response.statusCode == 200 && response.data != null) {
-        print('✅ Items fetched successfully');
+        print('✅ Items fetched successfully for branch $branchId');
         return response.data as Map<String, dynamic>;
       } else {
         return {
@@ -297,18 +318,72 @@ class ApiProvider {
       };
     }
   }
+// ✅ SEARCH CUSTOMER BY PHONE
+  Future<Map<String, dynamic>> searchCustomer(String phone) async {
+    try {
+      print('📡 Searching customer by phone: $phone');
 
+      final response = await _dio.get(
+        '/customers/search',
+        queryParameters: {'phone': phone},
+      );
+
+      print('📥 Search Response Status Code: ${response.statusCode}');
+      print('📥 Search Response Data: ${response.data}');
+
+      if (response.statusCode == 200 && response.data != null) {
+        print('✅ Search completed');
+        return response.data as Map<String, dynamic>;
+      } else {
+        return {
+          'success': false,
+          'found': false,
+          'message': 'Search failed',
+        };
+      }
+    } on DioException catch (e) {
+      print('❌ DioException searching customer: ${e.message}');
+      return {
+        'success': false,
+        'found': false,
+        'message': 'Network error: ${e.message}',
+      };
+    } catch (e) {
+      print('❌ Unexpected error searching customer: $e');
+      return {
+        'success': false,
+        'found': false,
+        'message': 'Unexpected error: $e',
+      };
+    }
+  }
   // ✅ GET BARBERS
+  // ✅ GET BARBERS - UPDATED to pass branch_id
   Future<Map<String, dynamic>> getBarbers() async {
     try {
       print('📡 Fetching barbers...');
 
-      final response = await _dio.get('/employees/barbers');
+      final int? branchId = SharedPrefService.instance.getBranchId();
+
+      if (branchId == null) {
+        print('⚠️ Warning: Branch ID not found');
+        return {
+          'success': false,
+          'message': 'Branch ID not found. Please login again.',
+        };
+      }
+
+      final response = await _dio.get(
+        '/employees/barbers',
+        queryParameters: {
+          'branch_id': branchId,
+        },
+      );
 
       print('📥 Barbers Response Status Code: ${response.statusCode}');
 
       if (response.statusCode == 200 && response.data != null) {
-        print('✅ Barbers fetched successfully');
+        print('✅ Barbers fetched successfully for branch $branchId');
         return response.data as Map<String, dynamic>;
       } else {
         return {
@@ -382,7 +457,6 @@ class ApiProvider {
           return response.data as Map<String, dynamic>;
         }
       }
-
       return {
         'success': false,
         'message': 'Failed to create sale',

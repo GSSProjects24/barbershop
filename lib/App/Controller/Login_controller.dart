@@ -1,4 +1,5 @@
 import 'package:babershop_project/App/provider/api_provider.dart';
+import 'package:babershop_project/App/provider/sharedprefference.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,20 +14,35 @@ class LoginController extends GetxController {
   final rememberMe = false.obs;
   final formKey = GlobalKey<FormState>();
 
+  // In your LoginController after successful login:
+
   Future<void> login() async {
     if (!formKey.currentState!.validate()) return;
 
     isLoading.value = true;
 
     try {
-      // ✅ Using username field (can be either username or email)
       final response = await ApiProvider.instance.login(
         usernameController.text.trim(),
         passwordController.text.trim(),
       );
 
       if (response['success'] == true) {
-        // Login successful - data already saved in ApiProvider
+        // ✅ ADD: Verify data was saved
+        await Future.delayed(const Duration(milliseconds: 500)); // Wait for save
+
+        final savedToken = SharedPrefService.instance.getToken();
+        final savedUserId = SharedPrefService.instance.getUserId();
+
+        print('🔍 Verifying saved data after login:');
+        print('📱 Token saved: ${savedToken != null}');
+        print('👤 User ID saved: $savedUserId');
+        print('📱 Token length: ${savedToken?.length ?? 0}');
+
+        if (savedToken == null || savedToken.isEmpty) {
+          print('❌ WARNING: Token was not saved properly!');
+        }
+
         Get.snackbar(
           'Success',
           'Login successful!',
@@ -37,7 +53,6 @@ class LoginController extends GetxController {
           duration: const Duration(seconds: 2),
         );
 
-        // Navigate to barber selection
         Get.offAllNamed('/barberSelection');
       } else {
         Get.snackbar(
@@ -51,6 +66,7 @@ class LoginController extends GetxController {
         );
       }
     } catch (e) {
+      print('❌ Login error: $e');
       Get.snackbar(
         'Error',
         'Failed to login: $e',

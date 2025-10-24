@@ -1,9 +1,7 @@
-// lib/App/widgets/points_redemption_widget.dart
-
+import 'package:babershop_project/App/Modules/barber_staff_selection/categories_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:babershop_project/App/Modules/barber_staff_selection/categories_controller.dart';
 
 /// Points Redemption Widget
 /// This widget allows customers to redeem their loyalty points during checkout
@@ -42,7 +40,6 @@ class PointsRedemptionWidget extends StatelessWidget {
       }
 
       return Container(
-
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -138,8 +135,10 @@ class PointsRedemptionWidget extends StatelessWidget {
                 if (availablePoints > 0)
                   ElevatedButton(
                     onPressed: () {
-                      final maxPoints = (subtotal / controller.pointsRedemptionRate).floor();
-                      final pointsToUse = availablePoints > maxPoints ? maxPoints : availablePoints;
+                      final maxPoints =
+                      (subtotal / controller.pointsRedemptionRate).floor();
+                      final pointsToUse =
+                      availablePoints > maxPoints ? maxPoints : availablePoints;
                       controller.pointsController.text = pointsToUse.toString();
                       controller.setPointsToRedeem(pointsToUse);
                     },

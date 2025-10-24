@@ -56,7 +56,8 @@ class CartController extends GetxController {
   var barbers = <Datum>[].obs;
   var isLoadingBarbers = false.obs;
   var selectedBarber = Rx<Datum?>(null);
-
+  var searchQuery = ''.obs;
+  final searchController = TextEditingController();
   // Customer variables
   var customers = <Customer>[].obs;
   var isLoadingCustomers = false.obs;
@@ -96,6 +97,10 @@ class CartController extends GetxController {
     fetchCategories();
     fetchAllItems();
     fetchCustomers();
+    searchController.addListener(() {
+      searchQuery.value = searchController.text;
+      filterItemsByCategory(); // Re-filter when search changes
+    });
 
     // ✅ Listen to points controller changes
     pointsController.addListener(() {
@@ -428,17 +433,29 @@ class CartController extends GetxController {
       isLoadingItems.value = false;
     }
   }
-
-  // Filter items by selected category
   void filterItemsByCategory() {
-    if (selectedCategoryId.value == 0) {
-      products.value = List.from(allItems);
-    } else {
-      products.value = allItems
+    List<ItemModel> filtered = List.from(allItems);
+
+    // Filter by category
+    if (selectedCategoryId.value != 0) {
+      filtered = filtered
           .where((item) => item.categoryId == selectedCategoryId.value)
           .toList();
     }
-    print('📊 Filtered ${products.length} items for category: $selectedCategoryName');
+
+    // Filter by search query
+    if (searchQuery.value.isNotEmpty) {
+      final query = searchQuery.value.toLowerCase();
+      filtered = filtered.where((item) {
+        return item.name.toLowerCase().contains(query) ||
+            item.title.toLowerCase().contains(query) ||
+            item.sku.toLowerCase().contains(query);
+      }).toList();
+    }
+
+    products.value = filtered;
+
+    print('📊 Filtered ${products.length} items | Category: $selectedCategoryName | Search: "${searchQuery.value}"');
   }
 
   // Select category
@@ -448,10 +465,15 @@ class CartController extends GetxController {
     filterItemsByCategory();
   }
 
-  // Clear category filter
+  // ✅ UPDATED: Clear category filter (keeps search active)
   void clearCategoryFilter() {
     selectedCategoryId.value = 0;
     selectedCategoryName.value = 'ALL';
+    filterItemsByCategory();
+  }
+  void clearSearch() {
+    searchController.clear();
+    searchQuery.value = '';
     filterItemsByCategory();
   }
 
@@ -661,7 +683,7 @@ class CartController extends GetxController {
       return;
     }
 
-    // ✅ NEW: Ensure only ONE payment method is selected
+    // ✅ Ensure only ONE payment method is selected
     int selectedPaymentMethods = 0;
     if (isCash.value) selectedPaymentMethods++;
     if (isOnline.value) selectedPaymentMethods++;
@@ -701,7 +723,7 @@ class CartController extends GetxController {
       // Prepare items for API
       final List<Map<String, dynamic>> apiItems = cartItems.map((cartItem) {
         return {
-          'item_type': cartItem.item.type, // 'service' or 'product'
+          'item_type': cartItem.item.type,
           'item_id': cartItem.item.id,
           'quantity': cartItem.quantity,
           'unit_price': cartItem.item.price,
@@ -713,15 +735,9 @@ class CartController extends GetxController {
       // Calculate amounts
       final double subtotal = double.parse(subtotalAmount);
       final double discountAmount = 0;
-
-      // ✅ Calculate points redeemed value
       final int pointsRedeemed = pointsToRedeem.value;
       final double pointsValue = pointsRedeemedValue;
-
-      // ✅ Calculate total amount: subtotal - discount - points value
       final double totalAmount = (subtotal - discountAmount - pointsValue).clamp(0.0, double.infinity);
-
-      // Paid amount equals total amount
       final double paidAmount = totalAmount;
 
       // ✅ Determine single payment method
@@ -737,7 +753,7 @@ class CartController extends GetxController {
       final int? branchId = SharedPrefService.instance.getBranchId();
 
       if (branchId == null) {
-        Get.back(); // Close loading dialog
+        Get.back();
         Get.snackbar(
           'Error',
           'Branch ID not found. Please login again.',
@@ -751,7 +767,7 @@ class CartController extends GetxController {
       print('💰 ===== PAYMENT DETAILS =====');
       print('🔧 Barber ID: ${selectedBarber.value?.id}');
       print('👤 Barber Name: ${selectedBarber.value?.fullName}');
-      print('🏢 Branch ID (from session): $branchId'); // ✅ From SharedPreferences
+      print('🏢 Branch ID: $branchId');
       print('👥 Customer ID: ${selectedCustomer.value?.id}');
       print('📱 Customer: ${selectedCustomer.value?.name}');
       print('💵 Subtotal: RM ${subtotal.toStringAsFixed(2)}');
@@ -762,11 +778,11 @@ class CartController extends GetxController {
       print('🛒 Items: $apiItems');
       print('============================');
 
-      // ✅ Call API with branch_id from session
+      // ✅ Call API
       final response = await ApiProvider.instance.createSale(
         customerId: selectedCustomer.value!.id,
         barberId: selectedBarber.value!.id!,
-        branchId: branchId, // ✅ Use stored branch_id
+        branchId: branchId,
         items: apiItems,
         subtotal: subtotal,
         discountAmount: discountAmount,
@@ -778,25 +794,57 @@ class CartController extends GetxController {
         splitPayments: null,
       );
 
-
-      // Close loading dialog
+      // ✅ CLOSE LOADING IMMEDIATELY
       Get.back();
 
       if (response['success'] == true) {
+        // ✅ CLEAR CART FIRST (instant)
+        _clearAfterPayment();
+
+        // ✅ UPDATE CUSTOMER POINTS LOCALLY (instant UI update)
+        if (selectedCustomer.value != null && pointsRedeemed > 0) {
+          final currentCustomer = selectedCustomer.value!;
+          final newPointsTotal = (currentCustomer.totalPoints - pointsRedeemed).clamp(0, double.infinity).toInt();
+
+          // Update selected customer with new points
+          selectedCustomer.value = Customer(
+            id: currentCustomer.id,
+            customerCode: currentCustomer.customerCode,
+            phone: currentCustomer.phone,
+            name: currentCustomer.name,
+            email: currentCustomer.email,
+            totalPoints: newPointsTotal,
+          );
+
+          // Also update in the customers list
+          final customerIndex = customers.indexWhere((c) => c.id == currentCustomer.id);
+          if (customerIndex != -1) {
+            customers[customerIndex] = selectedCustomer.value!;
+          }
+
+          print('✅ Customer points updated locally: ${currentCustomer.totalPoints} → $newPointsTotal');
+        }
+
+        // ✅ SHOW SUCCESS MESSAGE (instant)
         Get.snackbar(
           'Payment Success',
-          response['message'] ?? 'Success to process payment',
+          response['message'] ?? 'Payment processed successfully',
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: Colors.green,
           colorText: Colors.white,
           icon: const Icon(Icons.check_circle, color: Colors.white),
-          duration: const Duration(seconds: 3),
+          duration: const Duration(seconds: 2),
         );
 
-        _clearAfterPayment();
+        // ✅ REFRESH CUSTOMER DATA IN BACKGROUND (non-blocking)
+        // Use .then() instead of await so it doesn't block the UI
+        fetchCustomers().then((_) {
+          print('✅ Customer data synced with server');
+        }).catchError((error) {
+          print('⚠️ Background customer refresh failed: $error');
+          // Silent fail - user already has local update
+        });
 
-        // Refresh customer data to update points
-        await fetchCustomers();
       } else {
         Get.snackbar(
           'Payment Failed',
@@ -825,336 +873,24 @@ class CartController extends GetxController {
       );
     }
   }
-  // ✅ UPDATED: Make Payment with Points Redemption
-  // Future<void> makePayment() async {
-  //   // Validation checks
-  //   if (cartItems.isEmpty) {
-  //     Get.snackbar(
-  //       'Cart Empty',
-  //       'Please add items to cart',
-  //       snackPosition: SnackPosition.BOTTOM,
-  //       backgroundColor: Colors.red,
-  //       colorText: Colors.white,
-  //       icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white),
-  //     );
-  //     return;
-  //   }
-  //
-  //   if (selectedBarber.value == null) {
-  //     Get.snackbar(
-  //       'Barber Required',
-  //       'Please select a barber',
-  //       snackPosition: SnackPosition.BOTTOM,
-  //       backgroundColor: Colors.red,
-  //       colorText: Colors.white,
-  //       icon: const Icon(Icons.person_outline, color: Colors.white),
-  //     );
-  //     return;
-  //   }
-  //
-  //   if (selectedCustomer.value == null) {
-  //     Get.snackbar(
-  //       'Customer Required',
-  //       'Please select a customer',
-  //       snackPosition: SnackPosition.BOTTOM,
-  //       backgroundColor: Colors.red,
-  //       colorText: Colors.white,
-  //       icon: const Icon(Icons.person_outline, color: Colors.white),
-  //     );
-  //     return;
-  //   }
-  //
-  //   if (!isCash.value && !isOnline.value && !isQr.value) {
-  //     Get.snackbar(
-  //       'Payment Method Required',
-  //       'Please select a payment method',
-  //       snackPosition: SnackPosition.BOTTOM,
-  //       backgroundColor: Colors.red,
-  //       colorText: Colors.white,
-  //       icon: const Icon(Icons.payment, color: Colors.white),
-  //     );
-  //     return;
-  //   }
-  //
-  //   try {
-  //     // Show loading dialog
-  //     Get.dialog(
-  //       const Center(child: CircularProgressIndicator()),
-  //       barrierDismissible: false,
-  //     );
-  //
-  //     // Prepare items for API
-  //     final List<Map<String, dynamic>> apiItems = cartItems.map((cartItem) {
-  //       return {
-  //         'item_type': cartItem.item.type, // 'service' or 'product'
-  //         'item_id': cartItem.item.id,
-  //         'quantity': cartItem.quantity,
-  //         'unit_price': cartItem.item.price,
-  //         'is_redeemed': false,
-  //         'points_used': 0,
-  //       };
-  //     }).toList();
-  //
-  //     // Calculate amounts
-  //     final double subtotal = double.parse(subtotalAmount);
-  //     final double discountAmount = 0;
-  //
-  //     // ✅ Calculate points redeemed value
-  //     final int pointsRedeemed = pointsToRedeem.value;
-  //     final double pointsValue = pointsRedeemedValue;
-  //
-  //     // ✅ Calculate total amount: subtotal - discount - points value
-  //     final double totalAmount = (subtotal - discountAmount - pointsValue).clamp(0.0, double.infinity);
-  //
-  //     // Paid amount equals total amount
-  //     final double paidAmount = totalAmount;
-  //
-  //     // Determine payment method(s)
-  //     String primaryPaymentMethod = '';
-  //     List<Map<String, dynamic>>? splitPayments;
-  //
-  //     // Count selected payment methods
-  //     int paymentMethodCount = 0;
-  //     if (isCash.value) paymentMethodCount++;
-  //     if (isOnline.value) paymentMethodCount++;
-  //     if (isQr.value) paymentMethodCount++;
-  //
-  //     if (paymentMethodCount == "") {
-  //       // Single payment method
-  //       if (isCash.value) {
-  //         primaryPaymentMethod = 'cash';
-  //       } else if (isOnline.value) {
-  //         primaryPaymentMethod = 'online';
-  //       } else if (isQr.value) {
-  //         primaryPaymentMethod = 'qr';
-  //       }
-  //     } else if (paymentMethodCount > 1) {
-  //       // Split payment
-  //       primaryPaymentMethod = 'split';
-  //       splitPayments = [];
-  //
-  //       // Divide amount equally among selected methods
-  //       final double amountPerMethod = totalAmount / paymentMethodCount;
-  //
-  //       if (isCash.value) {
-  //         splitPayments.add({
-  //           'payment_method': 'cash',
-  //           'amount': amountPerMethod,
-  //         });
-  //       }
-  //       if (isOnline.value) {
-  //         splitPayments.add({
-  //           'payment_method': 'online',
-  //           'amount': amountPerMethod,
-  //         });
-  //       }
-  //       if (isQr.value) {
-  //         splitPayments.add({
-  //           'payment_method': 'qr',
-  //           'amount': amountPerMethod,
-  //         });
-  //       }
-  //     }
-  //
-  //     // Get branch_id from selected barber
-  //     final int branchId = selectedBarber.value?.branch?.id ?? 1;
-  //
-  //     print('💰 ===== PAYMENT DETAILS =====');
-  //     print('🔧 Barber ID: ${selectedBarber.value?.id}');
-  //     print('👤 Barber Name: ${selectedBarber.value?.fullName}');
-  //     print('🏢 Branch ID: $branchId');
-  //     print('👥 Customer ID: ${selectedCustomer.value?.id}');
-  //     print('📱 Customer: ${selectedCustomer.value?.name}');
-  //     print('💵 Subtotal: RM ${subtotal.toStringAsFixed(2)}');
-  //     print('🎁 Points Redeemed: $pointsRedeemed points');
-  //     print('💰 Points Value: RM ${pointsValue.toStringAsFixed(2)}');
-  //     print('💵 Total Amount: RM ${totalAmount.toStringAsFixed(2)}');
-  //     print('💳 Payment Method: $primaryPaymentMethod');
-  //     if (splitPayments != null) {
-  //       print('💳 Split Payments: $splitPayments');
-  //     }
-  //     print('🛒 Items: $apiItems');
-  //     print('============================');
-  //
-  //     // ✅ Call API with points redemption
-  //     final response = await ApiProvider.instance.createSale(
-  //       customerId: selectedCustomer.value!.id,
-  //       barberId: selectedBarber.value!.id!,
-  //       branchId: branchId,
-  //       items: apiItems,
-  //       subtotal: subtotal,
-  //       discountAmount: discountAmount,
-  //       pointsRedeemed: pointsRedeemed,
-  //       pointsRedeemedValue: pointsValue,
-  //       totalAmount: totalAmount,
-  //       paymentMethod: primaryPaymentMethod,
-  //       paidAmount: paidAmount,
-  //       splitPayments: splitPayments,
-  //     );
-  //
-  //     // Close loading dialog
-  //     Get.back();
-  //
-  //     if (response['success'] == true) {
-  //       final saleData = response['data'];
-  //       final sale = saleData['sale'];
-  //       final customer = saleData['customer'];
-  //       Get.snackbar(
-  //         'Payment Success',
-  //         response['message'] ?? 'Succes to process payment',
-  //         snackPosition: SnackPosition.BOTTOM,
-  //         backgroundColor: Colors.green,
-  //         colorText: Colors.white,
-  //         icon: const Icon(Icons.error_outline, color: Colors.white),
-  //         duration: const Duration(seconds: 3),
-  //       );
-  //       _clearAfterPayment();
-  //       // Show success dialog with sale details
-  //       // Get.dialog(
-  //       //   AlertDialog(
-  //       //     shape: RoundedRectangleBorder(
-  //       //       borderRadius: BorderRadius.circular(16),
-  //       //     ),
-  //       //     title: Row(
-  //       //       children: [
-  //       //         Container(
-  //       //           padding: const EdgeInsets.all(8),
-  //       //           decoration: BoxDecoration(
-  //       //             color: Colors.green.withOpacity(0.2),
-  //       //             borderRadius: BorderRadius.circular(8),
-  //       //           ),
-  //       //           child: const Icon(Icons.check_circle, color: Colors.green, size: 32),
-  //       //         ),
-  //       //         const SizedBox(width: 12),
-  //       //         const Text(
-  //       //           'Payment Successful!',
-  //       //           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-  //       //         ),
-  //       //       ],
-  //       //     ),
-  //       //     content: Column(
-  //       //       mainAxisSize: MainAxisSize.min,
-  //       //       crossAxisAlignment: CrossAxisAlignment.start,
-  //       //       children: [
-  //       //         _buildDetailRow('Invoice', sale['invoice_number'] ?? '-'),
-  //       //         _buildDetailRow('Subtotal', 'RM ${subtotal.toStringAsFixed(2)}'),
-  //       //         if (pointsRedeemed > 0) ...[
-  //       //           _buildDetailRow(
-  //       //             'Points Redeemed',
-  //       //             '$pointsRedeemed pts (-RM ${pointsValue.toStringAsFixed(2)})',
-  //       //             valueColor: Colors.blue,
-  //       //           ),
-  //       //         ],
-  //       //         _buildDetailRow('Total', 'RM ${totalAmount.toStringAsFixed(2)}'),
-  //       //         _buildDetailRow('Paid', 'RM ${paidAmount.toStringAsFixed(2)}'),
-  //       //         if (sale['change_amount'] != null && sale['change_amount'] > 0)
-  //       //           _buildDetailRow(
-  //       //             'Change',
-  //       //             'RM ${sale['change_amount'].toStringAsFixed(2)}',
-  //       //             valueColor: Colors.orange,
-  //       //           ),
-  //       //         _buildDetailRow(
-  //       //           'Points Earned',
-  //       //           '${sale['points_earned']} pts',
-  //       //           valueColor: Colors.amber.shade700,
-  //       //         ),
-  //       //         const Divider(height: 24),
-  //       //         Text(
-  //       //           'Customer Points: ${customer['total_points']} pts',
-  //       //           style: TextStyle(
-  //       //             fontSize: 14,
-  //       //             color: Colors.grey.shade700,
-  //       //             fontWeight: FontWeight.w600,
-  //       //           ),
-  //       //         ),
-  //       //       ],
-  //       //     ),
-  //       //     actions: [
-  //       //       TextButton(
-  //       //         onPressed: () {
-  //       //           Get.back();
-  //       //           _clearAfterPayment();
-  //       //         },
-  //       //         child: const Text('Close'),
-  //       //       ),
-  //       //       // ElevatedButton(
-  //       //       //   onPressed: () {
-  //       //       //     Get.back();
-  //       //       //     _printReceipt(saleData);
-  //       //       //     _clearAfterPayment();
-  //       //       //   },
-  //       //       //   style: ElevatedButton.styleFrom(
-  //       //       //     backgroundColor: const Color(0xFF667EEA),
-  //       //       //     shape: RoundedRectangleBorder(
-  //       //       //       borderRadius: BorderRadius.circular(8),
-  //       //       //     ),
-  //       //       //   ),
-  //       //       //   child: const Text(
-  //       //       //     'Print Receipt',
-  //       //       //     style: TextStyle(color: Colors.white),
-  //       //       //   ),
-  //       //       // ),
-  //       //     ],
-  //       //   ),
-  //       //   barrierDismissible: false,
-  //       // );
-  //
-  //       // Refresh customer data to update points
-  //       await fetchCustomers();
-  //     } else {
-  //       Get.snackbar(
-  //         'Payment Failed',
-  //         response['message'] ?? 'Failed to process payment',
-  //         snackPosition: SnackPosition.BOTTOM,
-  //         backgroundColor: Colors.red,
-  //         colorText: Colors.white,
-  //         icon: const Icon(Icons.error_outline, color: Colors.white),
-  //         duration: const Duration(seconds: 3),
-  //       );
-  //     }
-  //   } catch (e) {
-  //     // Close loading dialog if still open
-  //     if (Get.isDialogOpen ?? false) {
-  //       Get.back();
-  //     }
-  //
-  //     print('❌ Error processing payment: $e');
-  //     Get.snackbar(
-  //       'Error',
-  //       'Failed to process payment: $e',
-  //       snackPosition: SnackPosition.BOTTOM,
-  //       backgroundColor: Colors.red,
-  //       colorText: Colors.white,
-  //       duration: const Duration(seconds: 3),
-  //     );
-  //   }
-  // }
+// ✅ Search customer by phone
+  Future<Customer?> searchCustomerByPhone(String phone) async {
+    try {
+      if (phone.isEmpty) return null;
 
-  // Helper method to build detail rows in success dialog
-  Widget _buildDetailRow(String label, String value, {Color? valueColor}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade600,
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: valueColor ?? Colors.black87,
-            ),
-          ),
-        ],
-      ),
-    );
+      final response = await ApiProvider.instance.searchCustomer(phone);
+
+      if (response['success'] == true && response['found'] == true) {
+        final customerData = response['customer'];
+        if (customerData != null) {
+          return Customer.fromJson(customerData);
+        }
+      }
+      return null;
+    } catch (e) {
+      print('❌ Error searching customer: $e');
+      return null;
+    }
   }
 
   // ✅ UPDATED: Helper method to clear cart after successful payment
@@ -1185,7 +921,8 @@ class CartController extends GetxController {
     _clearAfterPayment();
     addFieldController.dispose();
     nameController.dispose();
-    pointsController.dispose(); // ✅ Dispose points controller
+    pointsController.dispose();
+    searchController.dispose(); // ✅ Dispose points controller
     super.onClose();
   }
 }
