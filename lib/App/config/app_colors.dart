@@ -6,7 +6,7 @@ class AppColors {
   static const Color accentAmber = Color(0xFFFFC107); // Amber yellow
   static const Color darkGold = Color(0xFFB8860B);
   static const Color textSecondary = Color(0xFF6B7280);
-  static const Color cardBackground = Color(0xFFFFFFFF);
+  static const Color cardBackground = Color(0xFF6B7280);
   static const Color crimson = Color(0xFF8B0000);
   static const Color success = Color(0xFF10B981);
 // At the top of your file, add these color constants for consistency

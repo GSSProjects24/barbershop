@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'package:babershop_project/App/Modules/barber_staff_selection/Report_page.dart';
 import 'package:babershop_project/App/Modules/barber_staff_selection/categories_controller.dart';
 import 'package:babershop_project/App/Modules/getcategoriModel/GetbarberModel.dart';
+
 import 'package:babershop_project/App/config/app_colors.dart';
 import 'package:babershop_project/App/provider/api_provider.dart';
 import 'package:babershop_project/App/provider/sharedprefference.dart';
@@ -69,9 +71,21 @@ class CustomerWidgets {
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          // Profile Button
+          IconButton(
+            onPressed: () {  // Close bottom sheet
+                          Get.to(() => const ReportsPageSimple());
+                          },
+            icon: const Icon(Icons.person, color: Colors.white, size: 18),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            tooltip: 'Profile',
+          ),
+          const SizedBox(width: 8),
+          // Logout Button
           IconButton(
             onPressed: () => _handleLogout(controller),
-            icon: const Icon(Icons.logout, color: Colors.black, size: 18),
+            icon: const Icon(Icons.logout, color: Colors.white, size: 18),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
             tooltip: 'Logout',
@@ -147,24 +161,6 @@ class CustomerWidgets {
 
   static Widget _buildCustomerSelector(CartController controller) {
     return Obx(() {
-      if (controller.isLoadingCustomers.value) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade300),
-          ),
-          child: const Center(
-            child: SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          ),
-        );
-      }
-
       return InkWell(
         onTap: () => showCustomerSearchDialog(controller),
         child: Container(
@@ -181,12 +177,15 @@ class CustomerWidgets {
               Expanded(
                 child: controller.selectedCustomer.value != null
                     ? Text(
-                  controller.selectedCustomer.value!.phone,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87),
+                  '${controller.selectedCustomer.value!.name}',
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87),
                   overflow: TextOverflow.ellipsis,
                 )
                     : Text(
-                  controller.customers.isEmpty ? 'No customers' : 'Select customer',
+                  'select customer',
                   style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                 ),
               ),
@@ -198,6 +197,99 @@ class CustomerWidgets {
     });
   }
 
+  // ✅ Show Profile Menu
+  // static void _showProfileMenu(CartController controller) {
+  //   Get.bottomSheet(
+  //     Container(
+  //       decoration: const BoxDecoration(
+  //         color: Colors.white,
+  //         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+  //       ),
+  //       padding: const EdgeInsets.all(20),
+  //       child: Column(
+  //         mainAxisSize: MainAxisSize.min,
+  //         children: [
+  //           // Header
+  //           Row(
+  //             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  //             children: [
+  //               const Text(
+  //                 'Profile Menu',
+  //                 style: TextStyle(
+  //                   fontSize: 18,
+  //                   fontWeight: FontWeight.w700,
+  //                   color: Color(0xFF1A1F36),
+  //                 ),
+  //               ),
+  //               IconButton(
+  //                 icon: const Icon(Icons.close),
+  //                 onPressed: () => Get.back(),
+  //                 padding: EdgeInsets.zero,
+  //                 constraints: const BoxConstraints(),
+  //               ),
+  //             ],
+  //           ),
+  //           const SizedBox(height: 20),
+  //
+  //           // Reports & Analytics
+  //           ListTile(
+  //             leading: Container(
+  //               padding: const EdgeInsets.all(8),
+  //               decoration: BoxDecoration(
+  //                 color: Colors.blue.withOpacity(0.1),
+  //                 borderRadius: BorderRadius.circular(8),
+  //               ),
+  //               child: const Icon(Icons.analytics, color: Colors.blue, size: 24),
+  //             ),
+  //             title: const Text(
+  //               'Reports & Analytics',
+  //               style: TextStyle(fontWeight: FontWeight.w600),
+  //             ),
+  //             subtitle: const Text('View sales and performance', style: TextStyle(fontSize: 12)),
+  //             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+  //             onTap: () {
+  //               Get.back(); // Close bottom sheet
+  //               Get.to(() => const ReportsPageSimple());
+  //             },
+  //           ),
+  //
+  //           const Divider(),
+  //
+  //           // Settings (Optional - for future)
+  //           ListTile(
+  //             leading: Container(
+  //               padding: const EdgeInsets.all(8),
+  //               decoration: BoxDecoration(
+  //                 color: Colors.grey.withOpacity(0.1),
+  //                 borderRadius: BorderRadius.circular(8),
+  //               ),
+  //               child: const Icon(Icons.settings, color: Colors.grey, size: 24),
+  //             ),
+  //             title: const Text(
+  //               'Settings',
+  //               style: TextStyle(fontWeight: FontWeight.w600),
+  //             ),
+  //             subtitle: const Text('App preferences', style: TextStyle(fontSize: 12)),
+  //             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+  //             onTap: () {
+  //               Get.back();
+  //               Get.snackbar(
+  //                 'Coming Soon',
+  //                 'Settings page will be available soon',
+  //                 snackPosition: SnackPosition.BOTTOM,
+  //               );
+  //             },
+  //           ),
+  //
+  //           const SizedBox(height: 10),
+  //         ],
+  //       ),
+  //     ),
+  //     isDismissible: true,
+  //     enableDrag: true,
+  //   );
+  // }
+
   // ✅ Customer Search Dialog
   static void showCustomerSearchDialog(CartController controller) {
     final searchController = TextEditingController();
@@ -207,8 +299,8 @@ class CustomerWidgets {
     final dialogNameController = TextEditingController();
     final isSearching = false.obs;
     final searchedCustomer = Rx<Customer?>(null);
+    final hasSearched = false.obs;
 
-    filteredCustomers.value = controller.customers;
     Timer? debounceTimer;
 
     Get.dialog(
@@ -231,6 +323,7 @@ class CustomerWidgets {
                 showAddForm,
                 isSearching,
                 debounceTimer,
+                hasSearched,
               ),
               const SizedBox(height: 16),
               Expanded(
@@ -244,6 +337,7 @@ class CustomerWidgets {
                   dialogPhoneController,
                   dialogNameController,
                   debounceTimer,
+                  hasSearched,
                 )),
               ),
             ],
@@ -251,27 +345,6 @@ class CustomerWidgets {
         ),
       ),
     ).then((_) => debounceTimer?.cancel());
-  }
-
-  static Widget _buildDialogHeader(Timer? debounceTimer) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        const Text(
-          'Select Customer',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1A1F36)),
-        ),
-        IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () {
-            debounceTimer?.cancel();
-            Get.back();
-          },
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-        ),
-      ],
-    );
   }
 
   static Widget _buildSearchField(
@@ -282,6 +355,7 @@ class CustomerWidgets {
       RxBool showAddForm,
       RxBool isSearching,
       Timer? debounceTimer,
+      RxBool hasSearched,
       ) {
     return TextField(
       controller: searchController,
@@ -300,9 +374,10 @@ class CustomerWidgets {
           icon: const Icon(Icons.clear, size: 20),
           onPressed: () {
             searchController.clear();
-            filteredCustomers.value = controller.customers;
+            filteredCustomers.value = [];
             searchedCustomer.value = null;
             showAddForm.value = false;
+            hasSearched.value = false;
             debounceTimer?.cancel();
           },
         )
@@ -331,6 +406,7 @@ class CustomerWidgets {
         showAddForm,
         isSearching,
         debounceTimer,
+        hasSearched,
       ),
     );
   }
@@ -343,19 +419,22 @@ class CustomerWidgets {
       RxBool showAddForm,
       RxBool isSearching,
       Timer? debounceTimer,
+      RxBool hasSearched,
       ) {
     debounceTimer?.cancel();
 
     if (value.isEmpty) {
-      filteredCustomers.value = controller.customers;
+      filteredCustomers.value = [];
       searchedCustomer.value = null;
       showAddForm.value = false;
       isSearching.value = false;
+      hasSearched.value = false;
       return;
     }
 
     if (value.length >= 3) {
       isSearching.value = true;
+      hasSearched.value = true;
       debounceTimer = Timer(const Duration(milliseconds: 500), () async {
         final result = await controller.searchCustomerByPhone(value);
         isSearching.value = false;
@@ -365,21 +444,14 @@ class CustomerWidgets {
           filteredCustomers.value = [result];
           showAddForm.value = false;
         } else {
-          filteredCustomers.value = controller.customers
-              .where((customer) =>
-          customer.phone.toLowerCase().contains(value.toLowerCase()) ||
-              customer.name.toLowerCase().contains(value.toLowerCase()))
-              .toList();
+          filteredCustomers.value = [];
           searchedCustomer.value = null;
         }
       });
     } else {
       isSearching.value = false;
-      filteredCustomers.value = controller.customers
-          .where((customer) =>
-      customer.phone.toLowerCase().contains(value.toLowerCase()) ||
-          customer.name.toLowerCase().contains(value.toLowerCase()))
-          .toList();
+      hasSearched.value = false;
+      filteredCustomers.value = [];
     }
   }
 
@@ -393,6 +465,7 @@ class CustomerWidgets {
       TextEditingController dialogPhoneController,
       TextEditingController dialogNameController,
       Timer? debounceTimer,
+      RxBool hasSearched,
       ) {
     if (showAddForm.value) {
       return _buildAddCustomerForm(
@@ -401,6 +474,10 @@ class CustomerWidgets {
         controller,
         showAddForm,
         debounceTimer,
+        searchController,
+        filteredCustomers,
+        searchedCustomer,
+        hasSearched,
       );
     }
 
@@ -417,11 +494,53 @@ class CustomerWidgets {
       );
     }
 
+    if (!hasSearched.value && filteredCustomers.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.person_search, size: 64, color: Colors.grey.shade300),
+            const SizedBox(height: 16),
+            Text(
+              'Search for a Customer',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Enter phone number to search',
+              style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (filteredCustomers.isEmpty) {
       return _buildEmptyState(searchController, dialogPhoneController, showAddForm);
     }
 
     return _buildCustomerList(filteredCustomers, searchedCustomer, controller, debounceTimer);
+  }
+
+  static Widget _buildDialogHeader(Timer? debounceTimer) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Text(
+          'Select Customer',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1A1F36)),
+        ),
+        IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () {
+            debounceTimer?.cancel();
+            Get.back();
+          },
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+        ),
+      ],
+    );
   }
 
   static Widget _buildAddCustomerForm(
@@ -430,6 +549,10 @@ class CustomerWidgets {
       CartController controller,
       RxBool showAddForm,
       Timer? debounceTimer,
+      TextEditingController searchController,
+      RxList<Customer> filteredCustomers,
+      Rx<Customer?> searchedCustomer,
+      RxBool hasSearched,
       ) {
     return SingleChildScrollView(
       child: Column(
@@ -509,6 +632,11 @@ class CustomerWidgets {
                     dialogNameController,
                     controller,
                     debounceTimer,
+                    showAddForm,
+                    searchController,
+                    filteredCustomers,
+                    searchedCustomer,
+                    hasSearched,
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.success,
@@ -534,8 +662,16 @@ class CustomerWidgets {
       TextEditingController dialogNameController,
       CartController controller,
       Timer? debounceTimer,
+      RxBool showAddForm,
+      TextEditingController searchController,
+      RxList<Customer> filteredCustomers,
+      Rx<Customer?> searchedCustomer,
+      RxBool hasSearched,
       ) async {
-    if (dialogPhoneController.text.isEmpty || dialogNameController.text.isEmpty) {
+    final phone = dialogPhoneController.text.trim();
+    final name = dialogNameController.text.trim();
+
+    if (phone.isEmpty || name.isEmpty) {
       Get.snackbar(
         'Required',
         'Please fill in all fields',
@@ -547,30 +683,39 @@ class CustomerWidgets {
       return;
     }
 
-    final phoneToSearch = dialogPhoneController.text;
-    controller.addFieldController.text = dialogPhoneController.text;
-    controller.nameController.text = dialogNameController.text;
+    controller.addFieldController.text = phone;
+    controller.nameController.text = name;
 
     await controller.createCustomer();
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 600));
 
-    final newCustomer = await controller.searchCustomerByPhone(phoneToSearch);
+    final newCustomer = await controller.searchCustomerByPhone(phone);
 
     if (newCustomer != null) {
       controller.selectCustomer(newCustomer);
+
       Get.snackbar(
         'Success',
-        'Customer added and selected',
+        'Customer added and selected successfully',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.green,
         colorText: Colors.white,
         duration: const Duration(seconds: 2),
       );
-      await Future.delayed(const Duration(milliseconds: 500));
+      showAddForm.value = false;
       debounceTimer?.cancel();
       Get.back();
+    } else {
+      Get.snackbar(
+        'Error',
+        'Customer created, but could not find in search. Try refreshing.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 2),
+      );
     }
-
+    showAddForm.value = false;
     dialogPhoneController.clear();
     dialogNameController.clear();
   }

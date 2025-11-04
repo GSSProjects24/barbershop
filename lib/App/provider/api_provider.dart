@@ -421,6 +421,7 @@ class ApiProvider {
   }) async {
     try {
       print('📡 Creating sale...');
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
       final Map<String, dynamic> requestData = {
         'customer_id': customerId,
@@ -439,9 +440,23 @@ class ApiProvider {
       // Add split payments if provided
       if (splitPayments != null && splitPayments.isNotEmpty) {
         requestData['split_payments'] = splitPayments;
+        print('💳 Split Payments Added: ${splitPayments.length} methods');
       }
 
-      print('📤 Sale Request Data: $requestData');
+      print('📤 Sale Request Data:');
+      print('   Customer ID: $customerId');
+      print('   Barber ID: $barberId');
+      print('   Branch ID: $branchId');
+      print('   Items Count: ${items.length}');
+      print('   Payment Method: $paymentMethod');
+      print('   Total Amount: RM $totalAmount');
+      if (splitPayments != null && splitPayments.isNotEmpty) {
+        print('   Split Payments:');
+        for (var payment in splitPayments) {
+          print('     - ${payment['payment_method']}: RM ${payment['amount']}');
+        }
+      }
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
       final response = await _dio.post(
         '/pos/sale',
@@ -450,6 +465,7 @@ class ApiProvider {
 
       print('📥 Sale Response Status Code: ${response.statusCode}');
       print('📥 Sale Response Data: ${response.data}');
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (response.data != null) {
@@ -457,20 +473,40 @@ class ApiProvider {
           return response.data as Map<String, dynamic>;
         }
       }
+
       return {
         'success': false,
         'message': 'Failed to create sale',
       };
     } on DioException catch (e) {
       print('❌ DioException creating sale: ${e.message}');
+      print('❌ Request: ${e.requestOptions.data}');
+
       if (e.response != null) {
+        print('❌ Status Code: ${e.response?.statusCode}');
         print('❌ Response data: ${e.response?.data}');
+
+        // Handle validation errors
+        if (e.response?.statusCode == 422) {
+          final errors = e.response?.data['errors'];
+          print('❌ Validation Errors: $errors');
+
+          return {
+            'success': false,
+            'message': e.response?.data['message'] ?? 'Validation failed',
+            'errors': errors,
+            'status_code': 422,
+          };
+        }
+
         return {
           'success': false,
           'message': e.response?.data['message'] ?? 'Failed to create sale',
           'error': e.response?.data,
+          'status_code': e.response?.statusCode,
         };
       }
+
       return {
         'success': false,
         'message': 'Network error: ${e.message}',
@@ -483,6 +519,202 @@ class ApiProvider {
       };
     }
   }
+  // ═══════════════════════════════════════════════════════════
+  // REPORTS API METHODS
+  // ═══════════════════════════════════════════════════════════
+
+  // ✅ GET SALES REPORT
+  Future<Map<String, dynamic>> getSalesReport({
+    DateTime? dateFrom,
+    DateTime? dateTo,
+    String? paymentMethod,
+  }) async {
+    try {
+      print('📡 Fetching sales report...');
+
+      final int? branchId = SharedPrefService.instance.getBranchId();
+
+      if (branchId == null) {
+        print('⚠️ Warning: Branch ID not found');
+        return {
+          'success': false,
+          'message': 'Branch ID not found. Please login again.',
+        };
+      }
+
+      final Map<String, dynamic> queryParams = {
+        'branch_id': branchId,
+      };
+
+      if (dateFrom != null) {
+        queryParams['date_from'] = dateFrom.toIso8601String().split('T')[0];
+      }
+      if (dateTo != null) {
+        queryParams['date_to'] = dateTo.toIso8601String().split('T')[0];
+      }
+      if (paymentMethod != null && paymentMethod.isNotEmpty) {
+        queryParams['payment_method'] = paymentMethod;
+      }
+
+      final response = await _dio.get(
+        '/reports/sales',
+        queryParameters: queryParams,
+      );
+
+      print('📥 Sales Report Response Status Code: ${response.statusCode}');
+
+      if (response.statusCode == 200 && response.data != null) {
+        print('✅ Sales report fetched successfully');
+        return response.data as Map<String, dynamic>;
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to fetch sales report',
+        };
+      }
+    } on DioException catch (e) {
+      print('❌ DioException fetching sales report: ${e.message}');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.message}',
+      };
+    } catch (e) {
+      print('❌ Unexpected error fetching sales report: $e');
+      return {
+        'success': false,
+        'message': 'Unexpected error: $e',
+      };
+    }
+  }
+
+  // ✅ GET BARBERS PERFORMANCE REPORT
+  Future<Map<String, dynamic>> getBarbersReport({
+    DateTime? dateFrom,
+    DateTime? dateTo,
+  }) async {
+    try {
+      print('📡 Fetching barbers performance report...');
+
+      final int? branchId = SharedPrefService.instance.getBranchId();
+
+      if (branchId == null) {
+        print('⚠️ Warning: Branch ID not found');
+        return {
+          'success': false,
+          'message': 'Branch ID not found. Please login again.',
+        };
+      }
+
+      final Map<String, dynamic> queryParams = {
+        'branch_id': branchId,
+      };
+
+      if (dateFrom != null) {
+        queryParams['date_from'] = dateFrom.toIso8601String().split('T')[0];
+      }
+      if (dateTo != null) {
+        queryParams['date_to'] = dateTo.toIso8601String().split('T')[0];
+      }
+
+      final response = await _dio.get(
+        '/reports/barbers/performance',
+        queryParameters: queryParams,
+      );
+
+      print('📥 Barbers Report Response Status Code: ${response.statusCode}');
+
+      if (response.statusCode == 200 && response.data != null) {
+        print('✅ Barbers report fetched successfully');
+        return response.data as Map<String, dynamic>;
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to fetch barbers report',
+        };
+      }
+    } on DioException catch (e) {
+      print('❌ DioException fetching barbers report: ${e.message}');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.message}',
+      };
+    } catch (e) {
+      print('❌ Unexpected error fetching barbers report: $e');
+      return {
+        'success': false,
+        'message': 'Unexpected error: $e',
+      };
+    }
+  }
+
+  // ✅ GET PAYMENTS REPORT
+  Future<Map<String, dynamic>> getPaymentsReport({
+    DateTime? dateFrom,
+    DateTime? dateTo,
+    String? paymentMethod,
+    String? paymentStatus,
+  }) async {
+    try {
+      print('📡 Fetching payments report...');
+
+      final int? branchId = SharedPrefService.instance.getBranchId();
+
+      if (branchId == null) {
+        print('⚠️ Warning: Branch ID not found');
+        return {
+          'success': false,
+          'message': 'Branch ID not found. Please login again.',
+        };
+      }
+
+      final Map<String, dynamic> queryParams = {
+        'branch_id': branchId,
+      };
+
+      if (dateFrom != null) {
+        queryParams['date_from'] = dateFrom.toIso8601String().split('T')[0];
+      }
+      if (dateTo != null) {
+        queryParams['date_to'] = dateTo.toIso8601String().split('T')[0];
+      }
+      if (paymentMethod != null && paymentMethod.isNotEmpty) {
+        queryParams['payment_method'] = paymentMethod;
+      }
+      if (paymentStatus != null && paymentStatus.isNotEmpty) {
+        queryParams['payment_status'] = paymentStatus;
+      }
+
+      final response = await _dio.get(
+        '/reports/payments',
+        queryParameters: queryParams,
+      );
+
+      print('📥 Payments Report Response Status Code: ${response.statusCode}');
+
+      if (response.statusCode == 200 && response.data != null) {
+        print('✅ Payments report fetched successfully');
+        return response.data as Map<String, dynamic>;
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to fetch payments report',
+        };
+      }
+    } on DioException catch (e) {
+      print('❌ DioException fetching payments report: ${e.message}');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.message}',
+      };
+    } catch (e) {
+      print('❌ Unexpected error fetching payments report: $e');
+      return {
+        'success': false,
+        'message': 'Unexpected error: $e',
+      };
+    }
+  }
+
   // ✅ LOGOUT API
   Future<bool> logout() async {
     await SharedPrefService.instance.clearAll();

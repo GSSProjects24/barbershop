@@ -2055,72 +2055,56 @@ import 'package:babershop_project/App/Modules/barber_staff_selection/widget/cust
 import 'package:babershop_project/App/Modules/barber_staff_selection/widget/payment_widgets.dart';
 import 'package:babershop_project/App/Modules/barber_staff_selection/widget/points_redemption_widget.dart';
 import 'package:babershop_project/App/Modules/barber_staff_selection/widget/product_widgets.dart';
+import 'package:babershop_project/App/config/responsive_size.dart';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
 class BarberSelectionPage extends StatelessWidget {
   const BarberSelectionPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(CartController());
+    final sizes = ResponsiveSizes(context);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          if (constraints.maxWidth > 1200) {
-            return _buildDesktopLayout(controller, constraints);
-          } else if (constraints.maxWidth > 600) {
-            return _buildTabletLayout(controller, constraints);
+          if (sizes.isDesktop) {
+            return _buildDesktopLayout(controller, sizes);
+          } else if (sizes.isTablet) {
+            return _buildTabletLayout(controller, sizes);
           } else {
-            return _buildMobileLayout(controller, constraints);
+            return _buildMobileLayout(controller, sizes);
           }
         },
       ),
-      floatingActionButton: LayoutBuilder(
-        builder: (context, constraints) {
-          if (MediaQuery.of(context).size.width <= 600) {
-            return Obx(() => controller.cartItems.isNotEmpty
-                ? FloatingActionButton.extended(
-              onPressed: () => CartWidgets.showCartBottomSheet(context, controller),
-              backgroundColor: Colors.orangeAccent,
-              icon: Badge(
-                label: Text('${controller.cartItems.length}'),
-                child: const Icon(Icons.shopping_cart),
-              ),
-              label: Text(
-                'RM ${controller.grandTotal}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            )
-                : const SizedBox.shrink());
-          }
-          return const SizedBox.shrink();
-        },
-      ),
+      floatingActionButton: _buildFloatingCartButton(context, controller, sizes), // ✅ Pass context here
     );
   }
 
-// ✅ DESKTOP LAYOUT
-  Widget _buildDesktopLayout(CartController controller, BoxConstraints constraints) {
+  // ✅ DESKTOP LAYOUT (> 1200px)
+  Widget _buildDesktopLayout(CartController controller, ResponsiveSizes sizes) {
+    final layout = sizes.layout;
+
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(layout.pagePadding),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            flex: 7,
-            child: ProductWidgets.buildProductsSection(controller, crossAxisCount: 4),
+            flex: layout.productFlex!,
+            child: ProductWidgets.buildProductsSection(controller),
           ),
-          const SizedBox(width: 24),
+          SizedBox(width: layout.sectionSpacing),
           SizedBox(
-            width: 450,
+            width: layout.cartWidth,
             child: _buildCartSection(
               controller,
-              maxHeight: 400,
-              containerHeight: null, // ✅ Desktop: flexible height
+              sizes,
+              maxHeight: layout.cartMaxHeight,
+              containerHeight: layout.cartContainerHeight,
             ),
           ),
         ],
@@ -2128,24 +2112,27 @@ class BarberSelectionPage extends StatelessWidget {
     );
   }
 
-// ✅ TABLET LAYOUT
-  Widget _buildTabletLayout(CartController controller, BoxConstraints constraints) {
+  // ✅ TABLET LAYOUT (600px - 1200px)
+  Widget _buildTabletLayout(CartController controller, ResponsiveSizes sizes) {
+    final layout = sizes.layout;
+
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(layout.pagePadding),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            flex: 6,
-            child: ProductWidgets.buildProductsSection(controller, crossAxisCount: 3),
+            flex: layout.productFlex!,
+            child: ProductWidgets.buildProductsSection(controller),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: layout.sectionSpacing),
           SizedBox(
-            width: 340,
+            width: layout.cartWidth,
             child: _buildCartSection(
               controller,
-              maxHeight: 600,
-              containerHeight: 750, // ✅ TABLET: Fixed 750px height
+              sizes,
+              maxHeight: layout.cartMaxHeight,
+              containerHeight: layout.cartContainerHeight,
             ),
           ),
         ],
@@ -2153,33 +2140,38 @@ class BarberSelectionPage extends StatelessWidget {
     );
   }
 
-// ✅ MOBILE LAYOUT
-  Widget _buildMobileLayout(CartController controller, BoxConstraints constraints) {
+  // ✅ MOBILE LAYOUT (< 600px)
+  Widget _buildMobileLayout(CartController controller, ResponsiveSizes sizes) {
+    final layout = sizes.layout;
+
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(layout.pagePadding),
         child: Column(
           children: [
             CustomerWidgets.buildBarberSelection(controller, isMobile: true),
-            const SizedBox(height: 16),
-            ProductWidgets.buildProductsSection(controller, crossAxisCount: 2, isMobile: true),
-            const SizedBox(height: 80),
+            SizedBox(height: layout.sectionSpacing),
+            ProductWidgets.buildProductsSection(controller, isMobile: true),
+            SizedBox(height: layout.fabBottomPadding!),
           ],
         ),
       ),
     );
   }
 
-// ✅ CART SECTION - Updated to accept containerHeight
+  // ✅ CART SECTION (Desktop & Tablet)
   Widget _buildCartSection(
-      CartController controller, {
-        double maxHeight = 400,
-        double? containerHeight, // ✅ NEW parameter
+      CartController controller,
+      ResponsiveSizes sizes, {
+        required double maxHeight,
+        double? containerHeight,
       }) {
+    final layout = sizes.layout;
+
     return Column(
       children: [
         CustomerWidgets.buildBarberSelection(controller),
-        const SizedBox(height: 16),
+        SizedBox(height: layout.sectionSpacing),
         Expanded(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
@@ -2188,20 +2180,45 @@ class BarberSelectionPage extends StatelessWidget {
                 CartWidgets.buildCartList(
                   controller,
                   maxHeight: maxHeight,
-                  containerHeight: containerHeight, // ✅ Pass to cart
+                  containerHeight: containerHeight,
                 ),
                 const SizedBox(height: 10),
                 PointsRedemptionWidget(controller: controller),
                 const SizedBox(height: 10),
+                PaymentWidgets.buildPaymentSection(controller),
               ],
             ),
           ),
         ),
-        PaymentWidgets.buildPaymentSection(controller),
+
       ],
     );
   }
 
-  // ✅ CART SECTION WITH FIXED PAYMENT
+  // ✅ FLOATING ACTION BUTTON (Mobile Only)
+  Widget _buildFloatingCartButton(
+      BuildContext context, // ✅ Add context parameter
+      CartController controller,
+      ResponsiveSizes sizes,
+      ) {
+    if (!sizes.isMobile) return const SizedBox.shrink();
 
+    return Obx(() => controller.cartItems.isNotEmpty
+        ? FloatingActionButton.extended(
+      onPressed: () => CartWidgets.showCartBottomSheet(context, controller), // ✅ Now context is available
+      backgroundColor: Colors.orangeAccent,
+      icon: Badge(
+        label: Text('${controller.cartItems.length}'),
+        child: Icon(Icons.shopping_cart, size: sizes.components.iconSizeLarge),
+      ),
+      label: Text(
+        'RM ${controller.grandTotal}',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: sizes.typography.bodyMedium,
+        ),
+      ),
+    )
+        : const SizedBox.shrink());
+  }
 }

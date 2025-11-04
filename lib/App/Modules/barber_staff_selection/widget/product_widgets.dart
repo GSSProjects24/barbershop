@@ -2,6 +2,8 @@ import 'package:babershop_project/App/Modules/barber_staff_selection/categories_
 import 'package:babershop_project/App/Modules/getcategoriModel/GetCateoriesModel.dart';
 import 'package:babershop_project/App/Modules/getcategoriModel/GetItemModel.dart';
 import 'package:babershop_project/App/config/app_colors.dart';
+import 'package:babershop_project/App/config/responsive_size.dart';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -9,37 +11,55 @@ class ProductWidgets {
   // ✅ Products Section
   static Widget buildProductsSection(
       CartController controller, {
-        required int crossAxisCount,
         bool isMobile = false,
       }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildProductSearchBar(controller),
-        const SizedBox(height: 12),
-        _buildCategoryFilters(controller),
-        const SizedBox(height: 12),
-        if (!isMobile)
-          Expanded(child: _buildProductsGrid(controller, crossAxisCount))
-        else
-          _buildProductsGrid(controller, crossAxisCount),
-      ],
+    return Builder(
+      builder: (context) {
+        final sizes = ResponsiveSizes(context);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildProductSearchBar(controller, sizes),
+            const SizedBox(height: 12),
+            _buildCategoryFilters(controller, sizes),
+            const SizedBox(height: 12),
+            if (!isMobile)
+              Expanded(child: _buildProductsGrid(controller, sizes))
+            else
+              _buildProductsGrid(controller, sizes),
+          ],
+        );
+      },
     );
   }
 
   // ✅ Search Bar
-  static Widget _buildProductSearchBar(CartController controller) {
+  static Widget _buildProductSearchBar(CartController controller, ResponsiveSizes sizes) {
+    final componentSizes = sizes.components;
+
     return Obx(() => Container(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: TextField(
         controller: controller.searchController,
         decoration: InputDecoration(
           hintText: 'Search products by name or SKU...',
-          hintStyle: TextStyle(fontSize: 14, color: Colors.grey.shade500),
-          prefixIcon: Icon(Icons.search, size: 20, color: Colors.grey.shade600),
+          hintStyle: TextStyle(
+            fontSize: componentSizes.searchBarFontSize,
+            color: Colors.grey.shade500,
+          ),
+          prefixIcon: Icon(
+            Icons.search,
+            size: componentSizes.iconSizeMedium,
+            color: Colors.grey.shade600,
+          ),
           suffixIcon: controller.searchQuery.value.isNotEmpty
               ? IconButton(
-            icon: Icon(Icons.clear, size: 20, color: Colors.grey.shade600),
+            icon: Icon(
+              Icons.clear,
+              size: componentSizes.iconSizeMedium,
+              color: Colors.grey.shade600,
+            ),
             onPressed: () => controller.clearSearch(),
           )
               : null,
@@ -57,16 +77,19 @@ class ProductWidgets {
           ),
           filled: true,
           fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: componentSizes.containerPadding,
+            vertical: 12,
+          ),
           isDense: true,
         ),
-        style: const TextStyle(fontSize: 14),
+        style: TextStyle(fontSize: componentSizes.searchBarFontSize),
       ),
     ));
   }
 
   // ✅ Category Filters
-  static Widget _buildCategoryFilters(CartController controller) {
+  static Widget _buildCategoryFilters(CartController controller, ResponsiveSizes sizes) {
     return Obx(() {
       if (controller.isLoadingCategories.value) {
         return _buildCategoryFiltersShimmer();
@@ -85,16 +108,23 @@ class ProductWidgets {
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
-            _buildCategoryChip(controller, 0, 'ALL'),
+            _buildCategoryChip(controller, sizes, 0, 'ALL'),
             ...controller.categories.map((category) =>
-                _buildCategoryChip(controller, category.id ?? 0, category.name ?? 'Unknown')),
+                _buildCategoryChip(controller, sizes, category.id ?? 0, category.name ?? 'Unknown')),
           ],
         ),
       );
     });
   }
 
-  static Widget _buildCategoryChip(CartController controller, int categoryId, String categoryName) {
+  static Widget _buildCategoryChip(
+      CartController controller,
+      ResponsiveSizes sizes,
+      int categoryId,
+      String categoryName,
+      ) {
+    final componentSizes = sizes.components;
+
     return Obx(() {
       final isSelected = controller.selectedCategoryId.value == categoryId;
       return Padding(
@@ -104,7 +134,7 @@ class ProductWidgets {
             categoryName.toUpperCase(),
             style: TextStyle(
               fontWeight: FontWeight.w600,
-              fontSize: 13,
+              fontSize: componentSizes.categoryChipFontSize,
               color: isSelected ? Colors.white : AppColors.darkGold,
             ),
           ),
@@ -124,7 +154,10 @@ class ProductWidgets {
               width: 1.5,
             ),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: EdgeInsets.symmetric(
+            horizontal: componentSizes.categoryChipPadding,
+            vertical: 10,
+          ),
         ),
       );
     });
@@ -153,34 +186,40 @@ class ProductWidgets {
   }
 
   // ✅ Products Grid
-  static Widget _buildProductsGrid(CartController controller, int crossAxisCount) {
+  static Widget _buildProductsGrid(CartController controller, ResponsiveSizes sizes) {
     return Obx(() {
       if (controller.isLoadingItems.value) {
         return const Center(child: CircularProgressIndicator());
       }
 
       if (controller.products.isEmpty) {
-        return _buildEmptyState(controller);
+        return _buildEmptyState(controller, sizes);
       }
+
+      final gridSizes = sizes.productGrid;
 
       return SingleChildScrollView(
         child: GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            childAspectRatio: 0.80,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
+            crossAxisCount: gridSizes.crossAxisCount,
+            childAspectRatio: gridSizes.childAspectRatio,
+            crossAxisSpacing: gridSizes.crossAxisSpacing,
+            mainAxisSpacing: gridSizes.mainAxisSpacing,
           ),
           itemCount: controller.products.length,
-          itemBuilder: (_, index) => _buildProductCard(controller.products[index], controller),
+          itemBuilder: (context, index) => _buildProductCard(
+            controller.products[index],
+            controller,
+            sizes,
+          ),
         ),
       );
     });
   }
 
-  static Widget _buildEmptyState(CartController controller) {
+  static Widget _buildEmptyState(CartController controller, ResponsiveSizes sizes) {
     String emptyMessage = 'No items available';
     IconData emptyIcon = Icons.inventory_2_outlined;
 
@@ -198,16 +237,27 @@ class ProductWidgets {
         children: [
           Icon(emptyIcon, size: 64, color: Colors.grey.shade300),
           const SizedBox(height: 16),
-          Text(emptyMessage, style: TextStyle(color: Colors.grey.shade500, fontSize: 16)),
-          if (controller.searchQuery.value.isNotEmpty || controller.selectedCategoryId.value != 0) ...[
+          Text(
+            emptyMessage,
+            style: TextStyle(
+              color: Colors.grey.shade500,
+              fontSize: sizes.typography.bodyLarge,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          if (controller.searchQuery.value.isNotEmpty ||
+              controller.selectedCategoryId.value != 0) ...[
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: () {
                 controller.clearSearch();
                 controller.clearCategoryFilter();
               },
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Clear Filters'),
+              icon: Icon(Icons.refresh, size: sizes.components.iconSizeSmall),
+              label: Text(
+                'Clear Filters',
+                style: TextStyle(fontSize: sizes.typography.bodyMedium),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryGold,
                 foregroundColor: Colors.white,
@@ -222,14 +272,20 @@ class ProductWidgets {
   }
 
   // ✅ Product Card
-  static Widget _buildProductCard(ItemModel product, CartController controller) {
+  static Widget _buildProductCard(
+      ItemModel product,
+      CartController controller,
+      ResponsiveSizes sizes,
+      ) {
+    final gridSizes = sizes.productGrid;
+
     return InkWell(
       onTap: () => controller.addToCart(product),
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(gridSizes.cardBorderRadius),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(gridSizes.cardBorderRadius),
           boxShadow: [
             BoxShadow(
               color: AppColors.accentAmber.withOpacity(0.1),
@@ -241,26 +297,26 @@ class ProductWidgets {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildProductImage(product),
-            Expanded(child: _buildProductDetails(product, controller)),
+            _buildProductImage(product, gridSizes),
+            Expanded(child: _buildProductDetails(product, controller, sizes)),
           ],
         ),
       ),
     );
   }
 
-  static Widget _buildProductImage(ItemModel product) {
+  static Widget _buildProductImage(ItemModel product, ProductGridSizes gridSizes) {
     return Stack(
       children: [
         ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(gridSizes.cardBorderRadius)),
           child: Image.network(
             product.imageUrl,
-            height: 80,
+            height: gridSizes.cardImageHeight,
             width: double.infinity,
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => Container(
-              height: 80,
+              height: gridSizes.cardImageHeight,
               color: Colors.grey.shade200,
               child: Image.asset("images/logo.jpg", height: 200, width: double.infinity),
             ),
@@ -270,14 +326,23 @@ class ProductWidgets {
           top: 8,
           left: 8,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: EdgeInsets.symmetric(
+              horizontal: gridSizes.badgePadding,
+              vertical: 4,
+            ),
             decoration: BoxDecoration(
-              color: product.type == 'service' ? Colors.blue.withOpacity(0.9) : Colors.purple.withOpacity(0.9),
+              color: product.type == 'service'
+                  ? Colors.blue.withOpacity(0.9)
+                  : Colors.purple.withOpacity(0.9),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               product.type.toUpperCase(),
-              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: gridSizes.badgeFontSize,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ),
@@ -285,7 +350,10 @@ class ProductWidgets {
           top: 8,
           right: 8,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: EdgeInsets.symmetric(
+              horizontal: gridSizes.badgePadding,
+              vertical: 4,
+            ),
             decoration: BoxDecoration(
               color: Colors.black.withOpacity(0.6),
               borderRadius: BorderRadius.circular(8),
@@ -293,11 +361,15 @@ class ProductWidgets {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.star, color: Colors.amber, size: 14),
+                Icon(Icons.star, color: Colors.amber, size: gridSizes.badgeFontSize + 4),
                 const SizedBox(width: 4),
                 Text(
                   '${product.pointsEarned ?? 0}',
-                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: gridSizes.badgeFontSize + 2,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -307,9 +379,15 @@ class ProductWidgets {
     );
   }
 
-  static Widget _buildProductDetails(ItemModel product, CartController controller) {
+  static Widget _buildProductDetails(
+      ItemModel product,
+      CartController controller,
+      ResponsiveSizes sizes,
+      ) {
+    final gridSizes = sizes.productGrid;
+
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(gridSizes.cardPadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -320,9 +398,14 @@ class ProductWidgets {
             if (searchQuery.isEmpty || !productName.toLowerCase().contains(searchQuery)) {
               return Text(
                 productName,
-                maxLines: 2,
+                maxLines: gridSizes.productNameMaxLines,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFF1A1F36)),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: gridSizes.productNameFontSize,
+                  color: const Color(0xFF1A1F36),
+                  height: 1.3,
+                ),
               );
             }
 
@@ -330,15 +413,23 @@ class ProductWidgets {
             final endIndex = startIndex + searchQuery.length;
 
             return RichText(
-              maxLines: 2,
+              maxLines: gridSizes.productNameMaxLines,
               overflow: TextOverflow.ellipsis,
               text: TextSpan(
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFF1A1F36)),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: gridSizes.productNameFontSize,
+                  color: const Color(0xFF1A1F36),
+                  height: 1.3,
+                ),
                 children: [
                   if (startIndex > 0) TextSpan(text: productName.substring(0, startIndex)),
                   TextSpan(
                     text: productName.substring(startIndex, endIndex),
-                    style: const TextStyle(backgroundColor: Color(0xFFFFEB3B), fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                      backgroundColor: Color(0xFFFFEB3B),
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   if (endIndex < productName.length) TextSpan(text: productName.substring(endIndex)),
                 ],
@@ -346,14 +437,24 @@ class ProductWidgets {
             );
           }),
           const SizedBox(height: 4),
-          Text('SKU: ${product.sku}', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+          Text(
+            'SKU: ${product.sku}',
+            style: TextStyle(
+              fontSize: gridSizes.skuFontSize,
+              color: Colors.grey[600],
+            ),
+          ),
           const Spacer(),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 'RM ${product.price}',
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: Color(0xFF10B981)),
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: gridSizes.priceFontSize,
+                  color: const Color(0xFF10B981),
+                ),
               ),
               Container(
                 padding: const EdgeInsets.all(6),
@@ -361,7 +462,11 @@ class ProductWidgets {
                   color: Colors.orangeAccent.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.add_shopping_cart, size: 18, color: Colors.orangeAccent),
+                child: Icon(
+                  Icons.add_shopping_cart,
+                  size: sizes.components.iconSizeSmall,
+                  color: Colors.orangeAccent,
+                ),
               ),
             ],
           ),
