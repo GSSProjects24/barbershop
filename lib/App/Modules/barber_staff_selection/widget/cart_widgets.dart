@@ -163,6 +163,7 @@ class CartWidgets {
     );
   }
 
+  // ✅ UPDATED: Now uses ReorderableListView for drag & drop
   static Widget _buildCartItemsList(
       CartController controller,
       double maxHeight,
@@ -175,91 +176,145 @@ class CartWidgets {
 
         return ConstrainedBox(
           constraints: BoxConstraints(maxHeight: calculatedMaxHeight, minHeight: 100),
-          child: ListView.separated(
+          child: ReorderableListView.builder(
             shrinkWrap: true,
             physics: const AlwaysScrollableScrollPhysics(),
             itemCount: controller.cartItems.length,
-            separatorBuilder: (_, __) => Divider(
-              height: 8,
-              thickness: 0.5,
-              color: Colors.grey.shade200,
-            ),
-            itemBuilder: (_, index) => _buildCartItem(controller, index, sizes),
+            buildDefaultDragHandles: false, // Custom drag handles
+            onReorder: (oldIndex, newIndex) {
+              controller.reorderCartItems(oldIndex, newIndex);
+            },
+            itemBuilder: (context, index) {
+              return _buildCartItem(
+                controller,
+                index,
+                sizes,
+                key: ValueKey('${controller.cartItems[index].item.id}_${controller.cartItems[index].item.type}_$index'),
+              );
+            },
+            proxyDecorator: (child, index, animation) {
+              return AnimatedBuilder(
+                animation: animation,
+                builder: (context, child) {
+                  return Material(
+                    elevation: 6 * animation.value,
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                    child: child,
+                  );
+                },
+                child: child,
+              );
+            },
           ),
         );
       },
     );
   }
 
-  static Widget _buildCartItem(CartController controller, int index, ResponsiveSizes sizes) {
+  // ✅ UPDATED: Added drag handle and proper key
+  static Widget _buildCartItem(
+      CartController controller,
+      int index,
+      ResponsiveSizes sizes, {
+        required Key key,
+      }) {
     final cartItem = controller.cartItems[index];
     final item = cartItem.item;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: sizes.components.cartItemFontSize,
-                  ),
+    return Container(
+      key: key,
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200, width: 1),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // ✅ Drag Handle
+            ReorderableDragStartListener(
+              index: index,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                child: Icon(
+                  Icons.drag_handle,
+                  color: Colors.grey.shade400,
+                  size: 20,
                 ),
-                const SizedBox(height: 3),
-                Row(
-                  children: [
-                    Icon(Icons.star, size: 11, color: Colors.amber.shade600),
-                    const SizedBox(width: 3),
-                    if (cartItem.quantity > 1) ...[
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Item Details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: sizes.components.cartItemFontSize,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      Icon(Icons.star, size: 11, color: Colors.amber.shade600),
+                      const SizedBox(width: 3),
+                      if (cartItem.quantity > 1) ...[
+                        Text(
+                          '${item.pointsEarned} × ${cartItem.quantity} = ',
+                          style: TextStyle(
+                            fontSize: sizes.typography.caption - 1,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                        Text(
+                          '${cartItem.totalPoints}',
+                          style: TextStyle(
+                            fontSize: sizes.typography.caption - 1,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ] else
+                        Text(
+                          '${cartItem.totalPoints}',
+                          style: TextStyle(
+                            fontSize: sizes.typography.caption - 1,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       Text(
-                        '${item.pointsEarned} × ${cartItem.quantity} = ',
+                        ' pts',
                         style: TextStyle(
-                          fontSize: sizes.typography.caption - 1,
+                          fontSize: sizes.typography.caption - 2,
                           color: Colors.grey[500],
                         ),
                       ),
-                      Text(
-                        '${cartItem.totalPoints}',
-                        style: TextStyle(
-                          fontSize: sizes.typography.caption - 1,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ] else
-                      Text(
-                        '${cartItem.totalPoints}',
-                        style: TextStyle(
-                          fontSize: sizes.typography.caption - 1,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    Text(
-                      ' pts',
-                      style: TextStyle(
-                        fontSize: sizes.typography.caption - 2,
-                        color: Colors.grey[500],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          _buildQuantityControls(controller, index, cartItem, sizes),
-          const SizedBox(width: 8),
-          _buildPriceColumn(cartItem, item, sizes),
-        ],
+            const SizedBox(width: 8),
+
+            // Quantity Controls
+            _buildQuantityControls(controller, index, cartItem, sizes),
+            const SizedBox(width: 8),
+
+            // Price Column
+            _buildPriceColumn(cartItem, item, sizes),
+          ],
+        ),
       ),
     );
   }

@@ -582,7 +582,22 @@ class CartController extends GetxController {
   // ════════════════════════════════════════════════════════════════
   // CART MANAGEMENT FUNCTIONS
   // ════════════════════════════════════════════════════════════════
+  /// Reorder cart items manually
+  void reorderCartItems(int oldIndex, int newIndex) {
+    // Adjust newIndex if moving item down the list
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
 
+    // Remove item from old position
+    final CartItem item = cartItems.removeAt(oldIndex);
+
+    // Insert at new position
+    cartItems.insert(newIndex, item);
+
+    print('🔄 Reordered: ${item.item.name} from position $oldIndex to $newIndex');
+    _printCartStatus();
+  }
   /// Add to cart with proper multiple items support
   void addToCart(ItemModel item) {
     // Check if customer is selected first
